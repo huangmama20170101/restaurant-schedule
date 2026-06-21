@@ -1,0 +1,2588 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排班系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#f3f1ed;--sur:#fff;--sur2:#f0ede8;--bd:#e2dfd8;--bd2:#c5c2b8;
+  --ink:#1a1918;--ink2:#5a5750;--ink3:#9a9790;
+  --red:#c03818;--red2:#e05828;
+  --morn-bg:#eef6f1;--morn-b:#2e8050;--morn-t:#1a5030;
+  --eve-bg:#edf1fa;--eve-b:#2e50a8;--eve-t:#1a3278;
+  --pt-bg:#fdf3e0;--pt-b:#b87818;--pt-t:#785010;
+  --off-bg:#eeece8;--off-b:#b0aaa0;
+  --grn:#1a7a3a;--grn-bg:#e8f5ee;
+  --r:7px;--rs:4px;--f:'Noto Sans TC',sans-serif;--m:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--f);background:var(--bg);color:var(--ink);font-size:13px;}
+button{font-family:var(--f);cursor:pointer;}
+input,select{font-family:var(--f);}
+
+/* ── SHELL ── */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.hdr{height:50px;background:var(--ink);color:#f0ede8;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:100;}
+.logo{font-weight:700;font-size:13px;letter-spacing:.1em;white-space:nowrap;}
+.logo em{color:#e86030;font-style:normal;}
+.nav{display:flex;gap:2px;}
+.nb{background:none;border:none;color:#999;padding:5px 12px;border-radius:var(--rs);font-size:12px;transition:all .12s;}
+.nb:hover{background:#2a2a28;color:#ddd;}.nb.on{background:#2e2e2c;color:#f0ede8;font-weight:500;}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.mnav{display:flex;align-items:center;gap:7px;}
+.mnav button{background:none;border:1px solid #444;color:#bbb;width:24px;height:24px;border-radius:3px;font-size:12px;}
+.mnav button:hover{border-color:#e86030;color:#e86030;}
+.mlbl{font-family:var(--m);font-size:12px;color:#ddd;min-width:68px;text-align:center;}
+.emp-dash-hdr .mnav button{border-color:var(--bd2);color:var(--ink2);}
+.emp-dash-hdr .mnav button:hover{border-color:var(--red);color:var(--red);}
+.emp-dash-hdr .mlbl{color:var(--ink);font-weight:600;}
+.emp-dash-hdr .mnav button:disabled{opacity:.3;cursor:not-allowed;}
+.emp-dash-hdr .mnav button:disabled:hover{border-color:var(--bd2);color:var(--ink2);}
+
+.body{display:flex;flex:1;overflow:hidden;}
+.pane{flex:1;overflow:hidden;display:none;flex-direction:column;}
+.pane.on{display:flex;}
+.ps{flex:1;overflow:auto;padding:14px 18px;}
+
+/* ── STORE TABS ── */
+.stbar{background:var(--sur);border-bottom:1px solid var(--bd);padding:0 18px;display:flex;align-items:center;gap:0;flex-shrink:0;overflow-x:auto;}
+.stbar::-webkit-scrollbar{height:3px;}
+.stab{padding:10px 16px;border:none;background:none;font-size:12px;color:var(--ink2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:6px;}
+.stab:hover{color:var(--ink);}.stab.on{color:var(--ink);font-weight:700;}
+.stab-add{padding:8px 12px;border:none;background:none;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:5px;margin-left:4px;border-radius:var(--rs);}
+.stab-add:hover{background:var(--sur2);color:var(--ink);}
+
+/* ── SUMMARY ── */
+.auto-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.abtn{background:var(--ink);color:#f0ede8;border:none;padding:7px 14px;border-radius:var(--rs);font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.abtn:hover{background:#333330;}
+.aclear{background:none;border:1px solid var(--bd2);color:var(--ink2);padding:7px 12px;border-radius:var(--rs);font-size:12px;}
+.aclear:hover{border-color:var(--red);color:var(--red);}
+.ares{font-size:11px;color:var(--ink3);padding:5px 10px;background:var(--sur2);border-radius:var(--rs);border:1px solid var(--bd);}
+.sumbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.sc{background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);padding:9px 13px;}
+.sc .sl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);}
+.sc .sv{font-family:var(--m);font-size:18px;margin-top:1px;}
+.sc.warn .sv{color:var(--red);}
+.sc.link{cursor:pointer;border-color:var(--bd2);}
+.sc.link:hover{border-color:var(--red);}
+
+/* ── CALENDAR ── */
+.cal-wrap{overflow-x:auto;}
+.cal{min-width:800px;}
+.cal-head{display:grid;grid-template-columns:28px repeat(7,1fr);gap:3px;margin-bottom:3px;}
+.cdh{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink3);padding:3px 0;}
+.cdh.sat{color:#2e50a8;}.cdh.sun{color:#b02828;}
+.cal-week{display:grid;grid-template-columns:28px repeat(7,1fr);gap:3px;margin-bottom:3px;}
+.cwn{display:flex;align-items:flex-start;justify-content:center;padding-top:7px;font-family:var(--m);font-size:10px;color:var(--ink3);}
+.cc{background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);min-height:112px;padding:5px;position:relative;}
+.cc.today{border-color:var(--red);}
+.cc.other{background:var(--sur2);opacity:.45;}
+.cc.sat .cdn{color:#2e50a8;}.cc.sun .cdn{color:#b02828;}
+.cc.today .cdn{color:var(--red);font-weight:700;}
+.cdn{font-family:var(--m);font-size:11px;color:var(--ink2);margin-bottom:3px;}
+.chip{border-radius:var(--rs);padding:3px 6px;margin-bottom:2px;font-size:11px;display:flex;align-items:center;gap:4px;position:relative;}
+.chip:hover{filter:brightness(.93);}
+.chip.m{background:var(--morn-bg);border-left:3px solid var(--morn-b);}
+.chip.e{background:var(--eve-bg);border-left:3px solid var(--eve-b);}
+.chip.p{background:var(--pt-bg);border-left:3px solid var(--pt-b);}
+.chip.h{background:#fdf0d8;border-left:3px solid #d4a020;}
+.chip.o{background:var(--off-bg);border-left:3px solid var(--off-b);color:var(--ink3);}
+.chip.empty{background:#fdeaea;border-left:3px solid #e08888;color:#b04040;font-style:italic;}
+.cdn-badge{display:inline-block;font-size:8px;padding:0 4px;border-radius:3px;margin-left:4px;font-weight:700;vertical-align:middle;}
+.cdn-badge.closed{background:var(--off-bg);color:var(--ink3);}
+.cdn-badge.holiday{background:#fdf0d8;color:#9a6010;}
+.cc.holiday{background:#fffaf0;}
+.cc.closed{background:var(--sur2);}
+.cr{font-size:8px;opacity:.55;font-weight:700;text-transform:uppercase;flex-shrink:0;}
+.cn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.ct{font-family:var(--m);font-size:9px;color:var(--ink3);white-space:nowrap;}
+.ct.editable{cursor:pointer;}.ct.editable:hover{color:var(--pt-t);text-decoration:underline;}
+/* store tag on chip */
+.cstore{font-size:8px;padding:0 4px;border-radius:2px;color:#fff;margin-left:2px;white-space:nowrap;flex-shrink:0;}
+.cdel{display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:10px;color:var(--ink3);padding:0 2px;}
+.chip:hover .cdel{display:block;}
+.addcbtn{width:100%;background:none;border:1px dashed transparent;color:var(--ink3);font-size:10px;padding:2px 3px;border-radius:3px;text-align:left;margin-top:2px;}
+.cc:hover .addcbtn{border-color:var(--bd2);}
+.addcbtn:hover{background:var(--sur2)!important;}
+
+/* ── REQUEST ── */
+.req-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:1100px){.req-layout{grid-template-columns:1fr;}}
+.req-block{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);overflow-x:auto;overflow-y:hidden;}
+.req-hdr{padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--sur2);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.rh-t{font-weight:700;font-size:13px;}.rh-s{font-size:11px;color:var(--ink3);}
+.rh-b{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;}
+.rh-b.full{background:#e0f0e8;color:#1a6030;}.rh-b.pt{background:var(--pt-bg);color:var(--pt-t);}
+.req-table{width:100%;border-collapse:collapse;min-width:640px;}
+.req-table th{padding:7px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);border-bottom:1px solid var(--bd);}
+.req-table td{padding:8px 12px;border-bottom:1px solid var(--bd);vertical-align:top;}
+.req-table tr:last-child td{border-bottom:none;}
+.req-table tr:hover td{background:var(--sur2);}
+.enc{display:flex;align-items:center;gap:7px;}
+.eav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+.dpick{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px;min-width:230px;}
+.dpb{width:24px;height:24px;border-radius:3px;font-family:var(--m);font-size:10px;border:1px solid var(--bd);background:var(--sur);color:var(--ink2);display:flex;align-items:center;justify-content:center;}
+.dpb.off{background:var(--off-bg);border-color:var(--off-b);color:var(--ink3);}
+.dpb.maxed{opacity:.45;cursor:not-allowed;}
+.dpb.work{background:var(--pt-bg);border-color:var(--pt-b);color:var(--pt-t);font-weight:700;}
+.dpb.must{background:var(--red);border-color:var(--red);color:#fff;font-weight:700;}
+.dpb.must.conflict{background:#7a1010;border-color:#a050c0;border-style:dashed;box-shadow:inset 0 0 0 1px #f3e0fa;}
+.dpb.want{background:#fde0c0;border-color:var(--pt-b);color:var(--pt-t);font-weight:700;}
+.dpb.want.conflict{background:#f3e0fa;border-color:#a050c0;border-style:dashed;color:#7030a0;}
+.dpb.legend{width:18px;height:18px;font-size:0;display:inline-flex;vertical-align:middle;margin-right:3px;cursor:default;}
+.dpc{font-size:10px;color:var(--ink3);}.dpc.warn{color:var(--red);}
+.numinp{width:44px;border:1px solid var(--bd);border-radius:var(--rs);padding:3px 5px;font-family:var(--m);font-size:12px;text-align:center;background:var(--bg);outline:none;}
+.numinp:focus{border-color:var(--red);}
+
+/* ── EMPLOYEE VIEW (staff login) ── */
+.emp-login{display:flex;align-items:center;justify-content:center;flex:1;background:var(--bg);}
+.emp-login-box{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:28px 32px;width:340px;box-shadow:0 4px 16px rgba(0,0,0,.08);}
+.emp-login-box h2{font-size:16px;font-weight:700;margin-bottom:4px;}
+.emp-login-box p{font-size:12px;color:var(--ink3);margin-bottom:20px;}
+.emp-dashboard{flex:1;overflow:auto;padding:20px;}
+.emp-dash-hdr{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.emp-dash-hdr .eav-lg{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;}
+.emp-dash-hdr h2{font-size:16px;font-weight:700;}
+.emp-dash-hdr p{font-size:12px;color:var(--ink3);}
+.emp-logout{margin-left:auto;background:none;border:1px solid var(--bd);padding:5px 12px;border-radius:var(--rs);font-size:12px;color:var(--ink2);}
+.emp-logout:hover{border-color:var(--red);color:var(--red);}
+.emp-cal-wrap{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px;overflow-x:auto;}
+.emp-cal-wrap h3{font-size:12px;font-weight:700;margin-bottom:10px;color:var(--ink2);}
+.emp-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.emp-stat{background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);padding:9px 14px;}
+.emp-stat .esl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);}
+.emp-stat .esv{font-family:var(--m);font-size:18px;margin-top:1px;}
+.emp-stat.warn .esv{color:var(--red);}
+/* emp mini calendar */
+.emc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.emc-dh{text-align:center;font-size:10px;font-weight:700;color:var(--ink3);padding:3px 0;}
+.emc-dh.sat{color:#2e50a8;}.emc-dh.sun{color:#b02828;}
+.emc-cell{border-radius:var(--rs);border:1px solid var(--bd);padding:6px 4px;text-align:center;font-family:var(--m);font-size:11px;cursor:pointer;transition:all .12s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;}
+.emc-badge{position:absolute;top:2px;right:2px;font-size:8px;padding:0 3px;border-radius:6px;background:var(--sur2);color:var(--ink3);line-height:1.5;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.emc-badge.ok{background:var(--grn-bg);color:var(--grn);}
+.emc-badge.full{background:#fff3df;color:#a06010;}
+.emc-badge.over{background:#fde0ea;color:#a02860;}
+.emc-badge-left{position:absolute;top:2px;left:2px;font-size:8px;padding:0 3px;border-radius:6px;line-height:1.5;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.emc-badge-left.closed{background:var(--off-bg);color:var(--ink3);}
+.emc-badge-left.holiday{background:#fdf0d8;color:#9a6010;}
+.emc-cell.closed{background:var(--sur2);}
+.emc-cell.holiday{background:#fffaf0;}
+.emc-cell.shift-m{background:var(--morn-bg);border-color:var(--morn-b);}
+.emc-cell.shift-m .emc-dn{color:var(--morn-t);font-weight:700;}
+.emc-cell.shift-e{background:var(--eve-bg);border-color:var(--eve-b);}
+.emc-cell.shift-e .emc-dn{color:var(--eve-t);font-weight:700;}
+.emc-cell.shift-p{background:var(--pt-bg);border-color:var(--pt-b);}
+.emc-cell.shift-p .emc-dn{color:var(--pt-t);font-weight:700;}
+.emc-cell.shift-h{background:#fdf0d8;border-color:#d4a020;}
+.emc-cell.shift-h .emc-dn{color:#9a6010;font-weight:700;}
+.emc-cell.shift-off{background:var(--off-bg);}
+.emc-tag.shift-store{font-size:8px;color:var(--ink3);}
+.eshift-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--rs);margin-bottom:5px;border:1px solid var(--bd);}
+.eshift-row .esd{font-family:var(--m);font-size:12px;min-width:64px;font-weight:600;}
+.eshift-row .est{font-size:11px;padding:2px 8px;border-radius:9px;font-weight:700;}
+.eshift-row .est.m{background:var(--morn-bg);color:var(--morn-t);}
+.eshift-row .est.e{background:var(--eve-bg);color:var(--eve-t);}
+.eshift-row .est.p{background:var(--pt-bg);color:var(--pt-t);}
+.eshift-row .est.h{background:#fdf0d8;color:#9a6010;}
+.eshift-row .estore{font-size:11px;color:var(--ink3);}
+.eshift-row .estime{font-family:var(--m);font-size:11px;color:var(--ink2);margin-left:auto;}
+.offchip{display:inline-block;font-family:var(--m);font-size:10px;padding:1px 6px;border-radius:3px;margin:1px 2px 1px 0;}
+.offchip.must{background:var(--red);color:#fff;}
+.offchip.want{background:#fde0c0;color:var(--pt-t);}
+.offchip.want.conflict{background:#f3e0fa;color:#7030a0;border:1px dashed #a050c0;}
+.emc-cell:hover{border-color:var(--bd2);background:var(--sur2);}
+.emc-cell.today{border-color:var(--red);}
+.emc-cell.today .emc-dn{color:var(--red);font-weight:700;}
+.emc-cell.other{opacity:.35;pointer-events:none;}
+.emc-cell.off{background:var(--off-bg);border-color:var(--off-b);}
+.emc-cell.off .emc-dn{color:var(--ink3);}
+.emc-cell.off .emc-tag{color:var(--ink3);}
+.emc-cell.pending{background:#fff8e8;border-color:#d0a020;border-style:dashed;}
+.emc-cell.pending .emc-tag{color:#a06010;}
+.emc-cell.sat .emc-dn{color:#2e50a8;}.emc-cell.sun .emc-dn{color:#b02828;}
+.emc-cell.maxed{cursor:not-allowed;opacity:.5;}
+.emc-dn{font-size:12px;color:var(--ink2);}
+.emc-tag{font-size:9px;color:var(--ink3);}
+/* pending requests panel */
+.pending-list{margin-top:16px;}
+.pending-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:6px;}
+.pending-item .pi-date{font-family:var(--m);font-size:12px;min-width:60px;}
+.pending-item .pi-status{font-size:10px;padding:2px 8px;border-radius:9px;font-weight:700;margin-left:auto;}
+.pi-status.pending{background:#fff8e8;color:#a06010;}
+.pi-status.approved{background:var(--grn-bg);color:var(--grn);}
+.pi-status.rejected{background:#fdeaea;color:#b03030;}
+.pi-cancel{background:none;border:1px solid var(--bd);padding:3px 8px;border-radius:var(--rs);font-size:11px;color:var(--ink3);}
+.pi-cancel:hover{border-color:var(--red);color:var(--red);}
+
+/* ── SETTINGS ── */
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.set-block{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px;}
+.set-block h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:12px;}
+.set-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.tinp{font-family:var(--m);font-size:12px;border:1px solid var(--bd);border-radius:var(--rs);padding:4px 7px;color:var(--ink);background:var(--bg);outline:none;width:88px;}
+.tinp:focus{border-color:var(--red);}
+.emp-tbl{width:100%;border-collapse:collapse;}
+.emp-tbl th{padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);border-bottom:1px solid var(--bd);}
+.emp-tbl td{padding:7px 10px;border-bottom:1px solid var(--bd);font-size:12px;}
+.emp-tbl tr:hover td{background:var(--sur2);}
+.rp{display:inline-block;font-size:9px;padding:2px 6px;border-radius:9px;font-weight:700;}
+.rp-mgr{background:#fde0d8;color:#a02810;}.rp-dep{background:#fdf0d0;color:#a06010;}
+.rp-full{background:#e0f0e0;color:#1a6020;}.rp-pt{background:var(--pt-bg);color:var(--pt-t);}
+.tagb{display:inline-block;font-size:9px;padding:2px 6px;border-radius:9px;font-weight:700;margin-right:3px;}
+.tagb.knife{background:#e8e4fb;color:#4a3aa0;}
+.tagb.front{background:#dcf3f0;color:#1a7a6a;}
+.spp{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:9px;background:var(--sur2);color:var(--ink2);}
+.snrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.sninp{border:1px solid var(--bd);border-radius:var(--rs);padding:5px 8px;font-size:12px;width:120px;outline:none;background:var(--bg);}
+.sninp:focus{border-color:var(--red);}
+.dsbtn{background:none;border:1px solid #f0c0b0;color:var(--red);padding:3px 8px;border-radius:var(--rs);font-size:11px;}
+.dsbtn:hover{background:#fdeae0;}
+.add-store-btn{background:none;border:1px dashed var(--bd2);color:var(--ink3);padding:5px 12px;border-radius:var(--rs);font-size:12px;display:flex;align-items:center;gap:5px;margin-top:4px;}
+.add-store-btn:hover{border-color:var(--red);color:var(--red);}
+/* pt slots */
+.pt-slot-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:5px 8px;background:var(--sur2);border-radius:var(--rs);border:1px solid var(--bd);}
+.pt-sn{font-size:11px;font-weight:600;color:var(--pt-t);min-width:60px;}
+.pt-st{font-family:var(--m);font-size:11px;color:var(--ink2);flex:1;}
+.pt-se{background:none;border:none;color:var(--ink3);font-size:11px;padding:0 4px;}
+.pt-se:hover{color:var(--eve-t);}
+.pt-sd{background:none;border:none;color:var(--ink3);font-size:12px;padding:0 3px;}
+.pt-sd:hover{color:var(--red);}
+.add-slot-btn{background:none;border:1px dashed var(--bd2);color:var(--ink3);font-size:11px;padding:4px 10px;border-radius:var(--rs);}
+.add-slot-btn:hover{border-color:var(--pt-b);color:var(--pt-t);}
+
+/* ── AI ── */
+.ai-layout{display:flex;gap:14px;height:100%;}
+.ai-main{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.ai-side{width:255px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.ai-chat{background:var(--ink);border-radius:var(--r);display:flex;flex-direction:column;flex:1;}
+.ai-ct{padding:10px 13px 8px;border-bottom:1px solid #2a2a28;display:flex;align-items:center;gap:7px;}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:#e86030;}
+.ai-ct span{font-size:11px;color:#999;} .ai-ct span em{color:#e86030;font-style:normal;}
+.ai-msgs{flex:1;overflow-y:auto;padding:10px 13px;display:flex;flex-direction:column;gap:7px;min-height:180px;max-height:340px;}
+.msg{font-size:12px;padding:7px 10px;border-radius:var(--rs);max-width:94%;line-height:1.6;}
+.msg.ai{background:#242422;color:#d8d5d0;align-self:flex-start;}
+.msg.user{background:var(--red);color:#fff;align-self:flex-end;}
+.msg.loading{background:#242422;color:#666;font-style:italic;align-self:flex-start;}
+.ai-inp{padding:9px 13px;border-top:1px solid #2a2a28;display:flex;gap:7px;}
+.ai-inp input{flex:1;background:#242422;border:1px solid #383836;color:#eee;padding:7px 10px;border-radius:var(--rs);font-size:12px;outline:none;}
+.ai-inp input:focus{border-color:#e86030;}
+.ai-inp button{background:var(--red);color:#fff;border:none;padding:7px 13px;border-radius:var(--rs);font-size:12px;font-weight:700;}
+.ai-inp button:hover{background:var(--red2);}
+.ai-inp button:disabled{opacity:.4;cursor:not-allowed;}
+.qbtn{background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);padding:8px 11px;text-align:left;font-size:11px;color:var(--ink);transition:all .12s;width:100%;margin-bottom:5px;line-height:1.5;}
+.qbtn:hover{border-color:var(--red2);background:#fff8f5;}
+.qbtn strong{display:block;font-weight:700;font-size:12px;margin-bottom:1px;}
+.qbtn span{font-size:10px;color:var(--ink3);}
+.issue-row{padding:7px 10px;border-radius:var(--rs);margin-bottom:5px;display:flex;align-items:flex-start;gap:6px;font-size:11px;line-height:1.5;}
+.issue-row.w{background:#fff3df;border-left:3px solid #d08020;}
+.issue-row.e{background:#fde8e8;border-left:3px solid #c03030;}
+
+/* ── MODALS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:flex;align-items:center;justify-content:center;}
+.overlay.hidden{display:none;}
+.modal{background:var(--sur);border-radius:var(--r);padding:20px 22px;width:370px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.modal.wide{width:480px;}
+.modal.xl{width:560px;}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:14px;}
+.fg{margin-bottom:11px;}
+.fg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:4px;}
+.fg input,.fg select{width:100%;border:1px solid var(--bd);border-radius:var(--rs);padding:7px 10px;font-size:12px;color:var(--ink);background:var(--bg);outline:none;}
+.fg input:focus,.fg select:focus{border-color:var(--red);}
+.tr2{display:flex;gap:9px;}.tr2 .fg{flex:1;}
+.mbtns{display:flex;justify-content:flex-end;gap:7px;margin-top:16px;}
+.bok{background:var(--red);color:#fff;border:none;padding:7px 16px;border-radius:var(--rs);font-size:12px;font-weight:700;}
+.bok:hover{background:var(--red2);}
+.bcl{background:none;border:1px solid var(--bd);padding:7px 16px;border-radius:var(--rs);font-size:12px;}
+.cg{display:flex;gap:6px;flex-wrap:wrap;}
+.cs{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .12s;}
+.cs.on{border-color:var(--ink);transform:scale(1.2);}
+.hint{font-size:10px;color:var(--ink3);margin-top:3px;}
+.bi{background:none;border:1px solid var(--bd);padding:3px 9px;border-radius:var(--rs);font-size:11px;color:var(--ink2);}
+.bi:hover{border-color:var(--bd2);background:var(--sur2);}
+.bi.del{color:var(--red);border-color:#f0c0b0;}.bi.del:hover{background:#fdeae0;}
+.div{height:1px;background:var(--bd);margin:12px 0;}
+/* pending approve panel in modal */
+.pend-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--rs);margin-bottom:5px;background:var(--sur2);border:1px solid var(--bd);}
+.pend-emp{font-weight:600;font-size:12px;min-width:70px;}
+.pend-date{font-family:var(--m);font-size:11px;color:var(--ink2);flex:1;}
+.pend-tag{font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;background:#fff8e8;color:#a06010;}
+.pend-btns{display:flex;gap:5px;margin-left:auto;}
+.papprove{background:var(--grn);color:#fff;border:none;padding:3px 9px;border-radius:var(--rs);font-size:11px;}
+.papprove:hover{filter:brightness(1.1);}
+.preject{background:none;border:1px solid #f0c0b0;color:var(--red);padding:3px 9px;border-radius:var(--rs);font-size:11px;}
+.preject:hover{background:#fdeae0;}
+/* confirm modal */
+.confirm-modal{background:var(--sur);border-radius:var(--r);padding:20px 22px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.confirm-modal h3{font-size:14px;font-weight:700;margin-bottom:10px;}
+.cprev{max-height:260px;overflow-y:auto;margin:10px 0;font-size:11px;line-height:1.8;background:var(--sur2);border-radius:var(--rs);padding:10px 12px;border:1px solid var(--bd);}
+.cprev .pd{font-weight:700;color:var(--ink);margin-top:6px;}.cprev .pd:first-child{margin-top:0;}
+.cprev .ps2{padding-left:10px;color:var(--ink2);}
+.cprev .ps2.m{color:var(--morn-t);}.cprev .ps2.e{color:var(--eve-t);}.cprev .ps2.p{color:var(--pt-t);}.cprev .ps2.h{color:#9a6010;}
+.cprev .psk{padding-left:10px;color:var(--ink3);font-style:italic;}
+/* req editor */
+.req-day-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--rs);margin-bottom:3px;}
+.req-day-row.ov{background:#fff8f0;}
+.rdinp{width:36px;border:1px solid var(--bd);border-radius:3px;padding:2px 4px;font-size:11px;text-align:center;background:var(--bg);outline:none;}
+.rdinp:focus{border-color:var(--red);}
+/* excel export btn */
+.export-btn{background:#1a7a3a;color:#fff;border:none;padding:7px 14px;border-radius:var(--rs);font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.export-btn:hover{filter:brightness(1.1);}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:9px 16px;border-radius:var(--rs);font-size:12px;z-index:900;transform:translateY(60px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{background:#1a6b3a;}.toast.err{background:#b03030;}
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px;}
+.dn{display:none!important;}
+
+/* ── ENTRY GATE ── */
+.gate{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:36px 40px;width:380px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.1);text-align:center;}
+.gate-logo{font-weight:700;font-size:20px;letter-spacing:.1em;margin-bottom:6px;}
+.gate-logo em{color:var(--red);font-style:normal;}
+.gate-sub{font-size:12px;color:var(--ink3);margin-bottom:26px;}
+.gate-choice{display:flex;flex-direction:column;gap:10px;}
+.gate-btn{display:flex;align-items:center;gap:12px;padding:16px 18px;border:1px solid var(--bd);border-radius:var(--r);background:var(--sur);text-align:left;transition:all .12s;}
+.gate-btn:hover{border-color:var(--ink);background:var(--sur2);}
+.gate-btn .gi{font-size:24px;flex-shrink:0;}
+.gate-btn .gt{font-weight:700;font-size:13px;}
+.gate-btn .gd{font-size:11px;color:var(--ink3);margin-top:2px;}
+.gate-back{background:none;border:none;color:var(--ink3);font-size:12px;margin-top:18px;cursor:pointer;}
+.gate-back:hover{color:var(--ink);}
+.gate-err{font-size:11px;color:var(--red);margin-top:10px;min-height:14px;}
+/* 員工直接從入口進入時，隱藏管理功能的導覽與按鈕，只留員工入口本身 */
+.hdr.emp-mode .nav .nb:not(:last-child){display:none;}
+.hdr.emp-mode .export-btn,.hdr.emp-mode .mnav,.hdr.emp-mode #syncIndicator{display:none;}
+.hdr.emp-mode .nav .nb:last-child{font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 入口選擇畫面 ══════════ -->
+<div class="gate" id="gateScreen">
+  <div class="gate-box">
+    <div id="gateStep1">
+      <div class="gate-logo">排<em>班</em>系統</div>
+      <div class="gate-sub">請選擇你的身份</div>
+      <div class="gate-choice">
+        <button class="gate-btn" onclick="gateShowAdminLogin()">
+          <span class="gi">🔑</span>
+          <span><span class="gt">我是店長 / 管理者</span><br><span class="gd">排班、設定、審核休假等完整功能</span></span>
+        </button>
+        <button class="gate-btn" onclick="gateEnterEmployee()">
+          <span class="gi">👤</span>
+          <span><span class="gt">我是員工</span><br><span class="gd">選擇姓名、輸入PIN碼，劃選休假/上班日</span></span>
+        </button>
+      </div>
+    </div>
+    <div id="gateStep2" class="dn">
+      <div class="gate-logo">🔑 管理者登入</div>
+      <div class="gate-sub">請輸入管理者密碼</div>
+      <div class="fg" style="text-align:left;"><input type="password" id="gateAdminPin" placeholder="管理者密碼" onkeydown="if(event.key==='Enter')gateAdminLogin()" style="width:100%;border:1px solid var(--bd);border-radius:var(--rs);padding:9px 12px;font-size:13px;outline:none;"></div>
+      <button class="bok" style="width:100%;padding:10px;margin-top:10px;" onclick="gateAdminLogin()">登入</button>
+      <div class="gate-err" id="gateAdminErr"></div>
+      <button class="gate-back" onclick="gateReset()">‹ 返回</button>
+    </div>
+  </div>
+</div>
+
+<div class="app dn" id="appRoot">
+
+<div class="hdr">
+  <div class="logo">排<em>班</em></div>
+  <div class="nav">
+    <button class="nb on" onclick="goPane('schedule',this)">📅 班表</button>
+    <button class="nb" onclick="goPane('request',this)">📝 填報</button>
+    <button class="nb" onclick="goPane('ai',this)">🤖 AI排班</button>
+    <button class="nb" onclick="goPane('settings',this)">⚙️ 設定</button>
+    <button class="nb" onclick="goPane('emp-portal',this)">👤 員工入口</button>
+  </div>
+  <div class="hdr-r">
+    <div id="syncIndicator" style="font-size:11px;color:#999;display:flex;align-items:center;gap:5px;cursor:pointer;" onclick="goPane('settings',document.querySelectorAll('.nb')[3])" title="點擊前往設定雲端連線">
+      <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:#999;display:inline-block;"></span>
+      <span id="syncText">未連線</span>
+    </div>
+    <button class="export-btn" onclick="exportExcel()">📊 匯出Excel</button>
+    <div class="mnav">
+      <button id="prevM">‹</button>
+      <div class="mlbl" id="mLbl"></div>
+      <button id="nextM">›</button>
+    </div>
+    <button class="emp-logout" style="margin-left:6px;" onclick="exitToGate()" title="返回身份選擇畫面">登出</button>
+  </div>
+</div>
+
+<div class="body">
+
+<!-- ══ 班表 ══ -->
+<div class="pane on" id="pane-schedule">
+  <div class="stbar" id="storeTabBar"></div>
+  <div class="ps">
+    <div class="auto-bar">
+      <button class="abtn" onclick="runAutoSchedule(curStore)">⚡ 自動排班（本店）</button>
+      <button class="abtn" style="background:#8a4a18;" onclick="runAutoScheduleAll()">⚡⚡ 一鍵排班（全部分店）</button>
+      <button class="aclear" onclick="clearStoreSchedule(curStore)">清除本月班表</button>
+      <div class="ares dn" id="autoResult"></div>
+    </div>
+    <div class="sumbar" id="calSummary"></div>
+    <div class="cal-wrap"><div class="cal" id="calGrid"></div></div>
+  </div>
+</div>
+
+<!-- ══ 填報 ══ -->
+<div class="pane" id="pane-request">
+  <div class="ps">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:3px;">員工填報</div>
+        <div style="font-size:12px;color:var(--ink3);">正職填必休/想休（月休上限可自訂）・工讀生填想上班日期</div>
+      </div>
+      <button class="abtn" style="background:var(--grn);" onclick="scrollToConflicts()">⚠️ 休假協調 <span id="pendBadge" style="background:#fff;color:var(--grn);font-size:10px;padding:1px 6px;border-radius:9px;margin-left:4px;"></span></button>
+    </div>
+    <div class="req-layout" id="reqLayout"></div>
+    <div id="conflictSection"></div>
+  </div>
+</div>
+
+<!-- ══ AI排班 ══ -->
+<div class="pane" id="pane-ai">
+  <div class="ps" style="height:100%;">
+    <div class="ai-layout">
+      <div class="ai-main">
+        <div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:8px;">本月概況</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;" id="aiStats"></div>
+        </div>
+        <div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:8px;">待解決問題 <span id="issueN"></span></div>
+          <div id="issueList"></div>
+        </div>
+        <div class="ai-chat" style="flex:1;">
+          <div class="ai-ct"><div class="ai-dot"></div><span>AI排班助手 <em>Claude</em></span></div>
+          <div class="ai-msgs" id="aiMsgs"><div class="msg ai">你好！我可以幫你自動排班、分析人力、找出問題。請輸入或選右側快捷。</div></div>
+          <div class="ai-inp">
+            <input type="text" id="aiIn" placeholder="輸入問題或指令…" onkeydown="if(event.key==='Enter')sendAI()">
+            <button id="aiBtn" onclick="sendAI()">送出</button>
+          </div>
+        </div>
+      </div>
+      <div class="ai-side">
+        <div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:8px;">快捷指令</div>
+          <button class="qbtn" onclick="aiQ('根據正職員工填報的休息日，幫我自動排這個月所有分店正職的早班和晚班，請列出建議班表')"><strong>🪄 自動排正職早晚班</strong><span>根據休假填報一鍵排班</span></button>
+          <button class="qbtn" onclick="aiQ('根據工讀生填報的上班日，分析每天每間店有幾位工讀生可用？哪天哪店工讀人力不足？')"><strong>📊 工讀人力分析</strong><span>哪天哪店工讀不夠</span></button>
+          <button class="qbtn" onclick="aiQ('掃描目前所有分店班表，找出哪些天缺人，請列出所有問題')"><strong>🔍 找出全部空班</strong><span>掃描所有分店</span></button>
+          <button class="qbtn" onclick="aiQ('有哪些正職員工的休息日重疊，導致同一天同一間店人力不足？')"><strong>⚠️ 休假衝突檢查</strong><span>找出休假重疊問題</span></button>
+        </div>
+        <div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px;font-size:11px;color:var(--ink2);line-height:1.8;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:6px;">排班規則</div>
+          每店每日：<br>• <span style="color:var(--morn-t);font-weight:600;">早班</span> 正職 <span id="rM" style="font-family:var(--m);font-size:10px;"></span><br>
+          • <span style="color:var(--eve-t);font-weight:600;">晚班</span> 正職 <span id="rE" style="font-family:var(--m);font-size:10px;"></span><br>
+          • <span style="color:var(--pt-t);font-weight:600;">工讀</span> 時段彈性 ・ <span style="color:#9a6010;font-weight:600;">節日班</span> 不分早晚<br>全公司每日休假上限 <span id="rOff" style="font-family:var(--m);"></span>人（必休+想休）
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 設定 ══ -->
+<div class="pane" id="pane-settings">
+  <div class="ps">
+    <div class="set-grid">
+      <div class="set-block" style="grid-column:1/-1;background:#f5f8ff;border-color:#c0d0f0;">
+        <h3>☁️ 雲端同步（Google Apps Script）</h3>
+        <div style="font-size:11px;color:var(--ink2);margin-bottom:10px;line-height:1.7;">
+          設定後，所有人（老闆、員工）只要打開同一個網址 + 填入同一組「連線網址」與「密碼」，資料就會即時同步。<br>
+          還沒架設後端？請依照「Apps Script 部署教學.txt」操作（已一併提供）。
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+          <div class="fg" style="margin:0;flex:1;min-width:260px;"><label>Apps Script 網址</label><input type="text" id="syncUrlInput" class="tinp" style="width:100%;" placeholder="https://script.google.com/macros/s/.../exec"></div>
+          <div class="fg" style="margin:0;width:160px;"><label>連線密碼</label><input type="password" id="syncKeyInput" class="tinp" style="width:100%;" placeholder="與後端設定相同"></div>
+          <button class="bok" onclick="connectSync()">連線</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="bi" onclick="manualPull()">⬇ 從雲端載入最新資料</button>
+          <button class="bi" onclick="manualPush()">⬆ 將本機資料上傳雲端</button>
+          <span id="syncStatusText" style="font-size:11px;color:var(--ink3);"></span>
+        </div>
+      </div>
+      <div class="set-block" style="grid-column:1/-1;">
+        <h3>🔑 管理者登入密碼</h3>
+        <div style="font-size:11px;color:var(--ink2);margin-bottom:10px;line-height:1.7;">
+          這組密碼是「進入完整管理系統」時要輸入的密碼（跟上方雲端連線密碼是不同用途）。員工不需要知道這組密碼，他們只需要在入口選「我是員工」即可。
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="fg" style="margin:0;width:220px;"><label>新的管理者密碼</label><input type="password" id="newAdminPinInput" class="tinp" style="width:100%;" placeholder="輸入新密碼"></div>
+          <button class="bok" onclick="changeAdminPin()">更新密碼</button>
+        </div>
+      </div>
+      <div class="set-block">
+        <h3>班別時間</h3>
+        <div class="set-row"><div class="sdot" style="background:var(--morn-b)"></div><label style="color:var(--morn-t);font-weight:700;min-width:32px;">早班</label><input type="time" class="tinp" id="mS" value="08:00" onchange="saveTimes()"><span style="font-size:11px;color:var(--ink3);">–</span><input type="time" class="tinp" id="mE" value="18:00" onchange="saveTimes()"></div>
+        <div class="set-row"><div class="sdot" style="background:var(--eve-b)"></div><label style="color:var(--eve-t);font-weight:700;min-width:32px;">晚班</label><input type="time" class="tinp" id="eS" value="10:00" onchange="saveTimes()"><span style="font-size:11px;color:var(--ink3);">–</span><input type="time" class="tinp" id="eE" value="20:00" onchange="saveTimes()"></div>
+        <div class="div"></div>
+        <h3 style="margin-bottom:8px;">工讀生時段範本</h3>
+        <div style="font-size:10px;color:var(--ink3);margin-bottom:8px;">排班時可從範本選擇，也可現場自訂</div>
+        <div id="ptSlotList"></div>
+        <button class="add-slot-btn" onclick="openAddSlot()">＋ 新增時段範本</button>
+      </div>
+      <div class="set-block">
+        <h3>分店管理</h3>
+        <div style="font-size:10px;color:var(--ink3);margin-bottom:8px;">每班「刀手/前台」為早班、晚班各自的人力需求（人數相同）。排班時系統會檢查當班是否有足夠帶有對應標籤的人，工讀生若有「刀手」標籤也能補早晚班的刀手缺口。員工標籤可在下方員工管理設定。</div>
+        <div id="storeNameSet"></div>
+        <button class="add-store-btn" onclick="addStore()">＋ 新增分店</button>
+        <div class="div"></div>
+        <h3 style="margin-bottom:8px;">正職休假規則</h3>
+        <div class="set-row">
+          <label style="font-size:12px;color:var(--ink2);">全公司每日休假上限（合計）</label>
+          <input type="number" min="0" max="30" id="globalOffLimitInput" value="2" class="numinp" onchange="setGlobalOffLimit(this.value)">
+          <span style="font-size:11px;color:var(--ink3);">人</span>
+        </div>
+        <div style="font-size:10px;color:var(--ink3);">超過此人數需在「休假協調」中額外核准</div>
+        <div class="set-row" style="margin-top:10px;">
+          <label style="font-size:12px;color:var(--ink2);">每月幾號起開放員工填下個月</label>
+          <input type="number" min="1" max="28" id="openDayInput" value="20" class="numinp" onchange="setOpenDay(this.value)">
+          <span style="font-size:11px;color:var(--ink3);">號</span>
+        </div>
+        <div style="font-size:10px;color:var(--ink3);">在這天之前，員工的下個月月曆只能預覽、無法點選；管理者不受此限制，隨時可排任何月份。</div>
+      </div>
+      <div class="set-block" style="grid-column:1/-1;">
+        <h3>節日 / 特殊營業日設定</h3>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:10px;">標記國定假日、年節等特殊日期，適用於全部分店。「公休」當天不需排班；「節日特殊班」當天不分早晚班，改為單一班次，可自訂需求人數與時段。</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="fg" style="margin:0;"><label>日期</label><input type="date" id="specialDateInput" class="tinp" style="width:130px;"></div>
+          <div class="fg" style="margin:0;"><label>類型</label>
+            <select id="specialTypeInput" class="tinp" style="width:170px;" onchange="onSpecialTypeChange()">
+              <option value="holiday">節日特殊班（不分早晚班）</option>
+              <option value="closed">公休（不營業）</option>
+            </select>
+          </div>
+          <div class="fg" style="margin:0;"><label>節日名稱（選填）</label><input type="text" id="specialNameInput" placeholder="例：春節初一" class="tinp" style="width:110px;"></div>
+          <div class="fg" id="specialCountFg" style="margin:0;"><label>需求人數</label><input type="number" min="1" max="20" id="specialCountInput" value="5" class="numinp" style="width:56px;"></div>
+          <div class="fg" id="specialTimeFg" style="margin:0;"><label>時段</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="time" id="specialStartInput" value="09:00" class="tinp" style="width:84px;">
+              <span style="font-size:11px;color:var(--ink3);">–</span>
+              <input type="time" id="specialEndInput" value="21:00" class="tinp" style="width:84px;">
+            </div>
+          </div>
+          <button class="bok" onclick="addSpecialDate()">＋ 新增</button>
+        </div>
+        <div id="specialDateList"></div>
+      </div>
+      <div class="set-block" style="grid-column:1/-1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="margin:0;">員工管理 <span id="empCnt" style="font-weight:400;color:var(--ink3);"></span></h3>
+          <button class="bok" style="font-size:11px;padding:5px 12px;" onclick="openAddEmp()">＋ 新增員工</button>
+        </div>
+        <table class="emp-tbl" id="empTbl"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 員工入口 ══ -->
+<div class="pane" id="pane-emp-portal">
+  <!-- login -->
+  <div class="emp-login" id="empLogin">
+    <div class="emp-login-box">
+      <h2>員工入口</h2>
+      <p>請選擇你的名字登入，自行劃選休假日</p>
+      <div class="fg"><label>選擇員工</label><select id="empLoginSel"></select></div>
+      <div class="fg"><label>PIN 碼（預設：1234）</label><input type="password" id="empLoginPin" placeholder="輸入 PIN" onkeydown="if(event.key==='Enter')empLogin()"></div>
+      <button class="bok" style="width:100%;padding:9px;" onclick="empLogin()">登入</button>
+      <div id="empLoginErr" style="font-size:11px;color:var(--red);margin-top:8px;"></div>
+    </div>
+  </div>
+  <!-- dashboard -->
+  <div class="emp-dashboard dn" id="empDash">
+    <div class="emp-dash-hdr">
+      <div class="eav-lg" id="empDashAv"></div>
+      <div><h2 id="empDashName"></h2><p id="empDashRole"></p></div>
+      <div class="mnav" style="margin-left:auto;">
+        <button id="empPrevM" onclick="empChangeMonth(-1)">‹</button>
+        <div class="mlbl" id="empMLbl"></div>
+        <button id="empNextM" onclick="empChangeMonth(1)">›</button>
+      </div>
+      <button class="emp-logout" onclick="empLogout()">登出</button>
+    </div>
+    <div class="emp-stat-row" id="empStatRow"></div>
+    <div class="emp-cal-wrap" id="empShiftWrap">
+      <h3 id="empShiftTitle">我的班表</h3>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;">
+        <span><span class="offchip" style="background:var(--morn-bg);color:var(--morn-t);border:1px solid var(--morn-b);">早班</span></span>
+        <span><span class="offchip" style="background:var(--eve-bg);color:var(--eve-t);border:1px solid var(--eve-b);">晚班</span></span>
+        <span><span class="offchip" style="background:var(--pt-bg);color:var(--pt-t);border:1px solid var(--pt-b);">工讀</span></span>
+        <span><span class="offchip" style="background:#fdf0d8;color:#9a6010;border:1px solid #d4a020;">節日班</span></span>
+      </div>
+      <div class="emc-grid" id="empShiftGrid"></div>
+      <div style="margin-top:14px;" id="empShiftList"></div>
+    </div>
+    <div class="emp-cal-wrap" style="margin-top:14px;">
+      <h3 id="empCalTitle"></h3>
+      <div id="empMonthLockBanner"></div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;">
+        <span><span class="cdn-badge closed" style="margin-left:0;">公休</span> 當天公司不營業</span>
+        <span><span class="cdn-badge holiday" style="margin-left:0;">節日</span> 當天為節日特殊班，不分早晚班</span>
+      </div>
+      <div class="emc-grid" id="empCalGrid"></div>
+    </div>
+    <div class="emp-cal-wrap" id="empOffOverviewWrap" style="margin-top:14px;">
+      <h3>全公司休假總覽（協調參考）</h3>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap;">
+        <span><span class="offchip must">日期</span> 必休</span>
+        <span><span class="offchip want">日期</span> 想休（已確定）</span>
+        <span><span class="offchip want conflict">日期⚠</span> 想休（協調中，名額已滿）</span>
+      </div>
+      <div id="empOffOverview" style="overflow-x:auto;"></div>
+    </div>
+    <div class="pending-list">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">我的休假明細</div>
+      <div id="empPendList"></div>
+    </div>
+  </div>
+</div>
+
+</div></div>
+
+<!-- SHIFT MODAL -->
+<div class="overlay hidden" id="shiftMod">
+  <div class="modal">
+    <h3 id="smTitle">安排班次</h3>
+    <div class="fg"><label>班別</label>
+      <select id="smType" onchange="onSmType()">
+        <option value="m">早班</option><option value="e">晚班</option>
+        <option value="p">工讀生</option><option value="h">節日班（不分早晚）</option><option value="o">休假標記</option>
+      </select>
+    </div>
+    <div class="fg" id="smEmpFg"><label>員工</label><select id="smEmp"></select></div>
+    <div id="smPtFg" class="dn">
+      <div class="tr2">
+        <div class="fg"><label>時段範本</label><select id="smPtSlot" onchange="onPtSlot()"></select></div>
+      </div>
+      <div class="tr2">
+        <div class="fg"><label>開始</label><input type="time" id="smPS" value="10:30"></div>
+        <div class="fg"><label>結束</label><input type="time" id="smPE" value="19:30"></div>
+      </div>
+      <div class="hint">休息1小時，依店況調整</div>
+    </div>
+    <div id="smHFg" class="dn">
+      <div class="tr2">
+        <div class="fg"><label>開始</label><input type="time" id="smHS" value="09:00"></div>
+        <div class="fg"><label>結束</label><input type="time" id="smHE" value="21:00"></div>
+      </div>
+      <div class="hint">節日特殊班，不分早晚班，可依當日狀況調整時間</div>
+    </div>
+    <div class="mbtns">
+      <button class="bcl" onclick="closeM('shiftMod')">取消</button>
+      <button class="bok" onclick="confirmShift()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- PT EDIT MODAL -->
+<div class="overlay hidden" id="ptEditMod">
+  <div class="modal">
+    <h3 id="ptETitle">調整工讀時間</h3>
+    <div class="fg" id="ptESlotFg"><label>套用範本</label><select id="ptESlot" onchange="onPtESlot()"></select></div>
+    <div class="tr2">
+      <div class="fg"><label>開始</label><input type="time" id="ptES"></div>
+      <div class="fg"><label>結束</label><input type="time" id="ptEE"></div>
+    </div>
+    <div class="hint">休息1小時，依店況調整</div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('ptEditMod')">取消</button><button class="bok" onclick="confirmPtEdit()">更新</button></div>
+  </div>
+</div>
+
+<!-- ADD SLOT MODAL -->
+<div class="overlay hidden" id="slotMod">
+  <div class="modal">
+    <h3 id="slotTitle">新增時段範本</h3>
+    <div class="fg"><label>名稱</label><input type="text" id="slotName" placeholder="例：下午班"></div>
+    <div class="tr2">
+      <div class="fg"><label>開始</label><input type="time" id="slotS" value="12:00"></div>
+      <div class="fg"><label>結束</label><input type="time" id="slotE" value="20:00"></div>
+    </div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('slotMod')">取消</button><button class="bok" onclick="saveSlot()">儲存</button></div>
+  </div>
+</div>
+
+<!-- EMP MODAL -->
+<div class="overlay hidden" id="empMod">
+  <div class="modal">
+    <h3 id="emTitle">新增員工</h3>
+    <div class="fg"><label>姓名</label><input type="text" id="emName"></div>
+    <div class="fg"><label>職位</label>
+      <select id="emRole"><option value="店長">店長</option><option value="代理店長">代理店長</option><option value="正職">正職</option><option value="工讀生">工讀生</option></select>
+    </div>
+    <div class="fg"><label>主店</label><select id="emStore" onchange="onEmStoreChange()"></select></div>
+    <div class="fg"><label>可支援分店（依優先順序排列，1為最優先）</label><div id="emSupport" style="margin-top:4px;border:1px solid var(--bd);border-radius:var(--rs);padding:8px 10px;background:var(--bg);"></div></div>
+    <div class="fg"><label>職務標籤</label>
+      <div style="display:flex;gap:14px;margin-top:4px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="emTagKnife" style="width:14px;height:14px;"> <span class="tagb knife" style="margin:0;">刀手</span></label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="emTagFront" style="width:14px;height:14px;"> <span class="tagb front" style="margin:0;">前台</span></label>
+      </div>
+      <div class="hint">「刀手」標籤的工讀生可在自動排班時補早晚班的刀手缺口；「前台」標籤僅代表技能標示，仍只會被排在工讀(PT)時段</div>
+    </div>
+    <div class="fg"><label>PIN 碼（員工入口用）</label><input type="text" id="emPin" placeholder="預設：1234" maxlength="8"></div>
+    <div class="fg"><label>顏色</label><div class="cg" id="emColors"></div></div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('empMod')">取消</button><button class="bok" onclick="saveEmp()">儲存</button></div>
+  </div>
+</div>
+
+<!-- STORE MODAL -->
+<div class="overlay hidden" id="storeMod">
+  <div class="modal">
+    <h3>新增分店</h3>
+    <div class="fg"><label>名稱</label><input type="text" id="storeNewName" placeholder="例：12號店"></div>
+    <div class="fg"><label>顏色</label><div class="cg" id="storeColors"></div></div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('storeMod')">取消</button><button class="bok" onclick="confirmAddStore()">新增</button></div>
+  </div>
+</div>
+
+<!-- REQ EDITOR MODAL -->
+<div class="overlay hidden" id="reqEdMod">
+  <div class="modal wide">
+    <h3 id="reqEdTitle">設定每日需求人數</h3>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;">設定全月預設，再針對特定日期個別覆蓋。</div>
+    <div style="background:var(--sur2);border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;min-width:60px;">全月預設</span>
+      <label style="font-size:11px;color:var(--morn-t);display:flex;align-items:center;gap:4px;">早 <input type="number" id="defM" min="0" max="9" value="1" class="numinp"> 人</label>
+      <label style="font-size:11px;color:var(--eve-t);display:flex;align-items:center;gap:4px;">晚 <input type="number" id="defE" min="0" max="9" value="1" class="numinp"> 人</label>
+      <label style="font-size:11px;color:var(--pt-t);display:flex;align-items:center;gap:4px;">PT <input type="number" id="defP" min="0" max="9" value="1" class="numinp"> 人</label>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink2);margin-bottom:6px;">單日覆蓋（留空=沿用預設）</div>
+    <div style="max-height:280px;overflow-y:auto;" id="reqDayList"></div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('reqEdMod')">取消</button><button class="bok" onclick="saveReqEditor()">套用</button></div>
+  </div>
+</div>
+
+<!-- AUTO CONFIRM MODAL -->
+<div class="overlay hidden" id="autoMod">
+  <div class="confirm-modal">
+    <h3 id="autoTitle">自動排班預覽</h3>
+    <div style="font-size:12px;color:var(--ink2);margin-bottom:8px;" id="autoSub"></div>
+    <div class="cprev" id="autoPrev"></div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:8px;">套用後仍可手動修改任何班次。</div>
+    <div class="mbtns"><button class="bcl" onclick="closeM('autoMod')">取消</button><button class="bok" onclick="applyAutoSchedule()">套用班表</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const EC=['#c83818','#287840','#284898','#883898','#b87010','#207880','#703860','#486020','#9a3040','#306848'];
+// 員工職務標籤：刀手(廚房/備料切割)、前台(收銀/外場)，可複選，協助排班時判斷誰能補早晚班缺口
+const DUTY_TAGS=['刀手','前台'];
+const DAYS=['一','二','三','四','五','六','日'];
+const OFF_MAX_DEFAULT=8;
+
+let empOffMax={};
+function getOffMax(id){return empOffMax[id]??OFF_MAX_DEFAULT;}
+
+// 「正職休假上限」為全公司（四間店合計）每日上限，不分店
+let globalOffLimit=2;
+// 員工開放填寫「下個月」休假/上班日的日期門檻：每月此日期(含)之後，下個月才能點選填寫
+// 例如 openDay=20，代表6/20起才能開始填7月的休假；6/19以前7月月曆顯示但點不了
+let openDay=20;
+function isNextMonthOpen(){return new Date().getDate()>=openDay;}
+// 判斷某個「目標年月」對員工來說是否可填寫：
+// - 早於或等於系統目前所在月份(Y,M)：一律開放（本月、過去月份不受限制，只鎖下個月以後）
+// - 晚於目前月份：要先檢查真實日期是否已過 openDay 門檻
+function isMonthEditableForEmp(y,m){
+  const now=new Date();
+  const curY=now.getFullYear(),curM=now.getMonth();
+  if(y<curY||(y===curY&&m<=curM))return true;
+  if(y===curY&&m===curM+1)return isNextMonthOpen();
+  if(curM===11&&y===curY+1&&m===0)return isNextMonthOpen(); // 跨年12月→隔年1月
+  return false; // 再更後面的月份，一律先不開放
+}
+function getOffLimit(){return globalOffLimit;}
+
+let storeDefaultReq={};
+let dailyReq={};
+// 特殊日期：specialDates[dateStr] = {type:'closed'} 公休不營業
+//                                 | {type:'holiday',headcount,hS,hE} 節日特殊班（不分早晚班，單一班次，可設人數與時段）
+// 適用全部分店。
+let specialDates={};
+let holidayDefaultTime={hS:'09:00',hE:'21:00'};
+function getReq(si,date){
+  const sp=specialDates[date];
+  if(sp){
+    if(sp.type==='closed')return{m:0,e:0,p:0,h:0};
+    if(sp.type==='holiday')return{m:0,e:0,p:0,h:sp.headcount};
+  }
+  const override=dailyReq[si]?.[date];
+  if(override)return{m:override.m||0,e:override.e||0,p:override.p||0,h:0};
+  const def=storeDefaultReq[si]??{m:1,e:1,p:1};
+  return{m:def.m,e:def.e,p:def.p,h:0};
+}
+
+let times={mS:'08:00',mE:'18:00',eS:'10:00',eE:'20:00'};
+let Y=new Date().getFullYear(), M=new Date().getMonth();
+let curStore=1;
+let selColor=EC[0],editEmpId=null,pendingCell=null,pendingPtEdit=null,editSlotId=null,reqEdStore=null,pendingAutoResult=null;
+let newStoreColor=EC[0];
+let loggedEmpId=null;
+// 管理者登入密碼（給「我是店長/管理者」入口用，跟雲端同步密碼是兩回事）
+let adminPin=localStorage.getItem('sched_adminPin')||'admin1234';
+
+let stores=[
+  {id:1,name:'1號店',color:'#c83818'},
+  {id:3,name:'3號店',color:'#287840'},
+  {id:4,name:'4號店',color:'#284898'},
+  {id:7,name:'7號店',color:'#883898'},
+  {id:10,name:'10號店',color:'#b87010'},
+];
+
+let ptSlots=[
+  {id:1,name:'全天班',start:'10:30',end:'19:30'},
+  {id:2,name:'早段',start:'10:30',end:'15:30'},
+  {id:3,name:'午段',start:'12:00',end:'17:00'},
+  {id:4,name:'晚段',start:'15:00',end:'20:00'},
+];
+
+let employees=[
+  {id:101,name:'林毓倫',role:'店長',mainStore:1,supportStores:[3],color:'#c83818',pin:'1234'},
+  {id:102,name:'江炘諺',role:'代理店長',mainStore:1,supportStores:[3,4,7],color:'#e07030',pin:'1234'},
+  {id:103,name:'張玉橫',role:'代理店長',mainStore:1,supportStores:[3,4,7],color:'#d05020',pin:'1234'},
+  {id:104,name:'陳正豪',role:'店長',mainStore:3,supportStores:[1],color:'#287840',pin:'1234'},
+  {id:105,name:'譚皓宇',role:'代理店長',mainStore:3,supportStores:[1,4,7],color:'#3a9858',pin:'1234'},
+  {id:106,name:'陳正杰',role:'店長',mainStore:4,supportStores:[7],color:'#284898',pin:'1234'},
+  {id:107,name:'華梓玄',role:'代理店長',mainStore:4,supportStores:[7],color:'#3a5ab8',pin:'1234'},
+  {id:108,name:'邱伯綜',role:'店長',mainStore:7,supportStores:[3],color:'#883898',pin:'1234'},
+  {id:109,name:'張彥琦',role:'代理店長',mainStore:7,supportStores:[4],color:'#a050b8',pin:'1234'},
+  {id:110,name:'陳志偉',role:'店長',mainStore:10,supportStores:[],color:'#b87010',pin:'1234'},
+  {id:111,name:'張哲榮',role:'正職',mainStore:4,supportStores:[1,3],color:'#207880',pin:'1234'},
+  {id:201,name:'蕭妤帆',role:'工讀生',mainStore:1,supportStores:[3,4,7],color:'#c83818',pin:'1234'},
+  {id:202,name:'陳柏芊',role:'工讀生',mainStore:1,supportStores:[3,4,7],color:'#287840',pin:'1234'},
+  {id:203,name:'林侑淇',role:'工讀生',mainStore:7,supportStores:[4,10,3],color:'#284898',pin:'1234'},
+  {id:204,name:'吳志恩',role:'工讀生',mainStore:1,supportStores:[3,4],color:'#883898',pin:'1234'},
+  {id:205,name:'江旻珊',role:'工讀生',mainStore:1,supportStores:[3],color:'#b87010',pin:'1234'},
+  {id:206,name:'黃可兒',role:'工讀生',mainStore:1,supportStores:[3,4,7],color:'#207880',pin:'1234'},
+  {id:207,name:'廖婕馨',role:'工讀生',mainStore:1,supportStores:[3,7],color:'#703860',pin:'1234'},
+  {id:208,name:'黃小樂',role:'工讀生',mainStore:4,supportStores:[],color:'#486020',pin:'1234'},
+  {id:209,name:'周沐軒',role:'工讀生',mainStore:1,supportStores:[3,4],color:'#9a3040',pin:'1234'},
+];
+
+// 正職休假：必休（mustOff）／想休（wantOff），每人各自一個 Set<dateStr>
+let mustOff={};   // empId → Set<dateStr>
+let wantOff={};   // empId → Set<dateStr>
+let workDays={};  // empId → Set<dateStr>  （工讀生上班日）
+let schedule={};  // storeId → dateStr → [{type,empId,ptS?,ptE?}]
+// 衝突協調結果：conflictResolution[dateStr] = Set<empId>（被核准的「想休」員工，全公司統一）
+let conflictResolution={};
+
+const isFT=r=>r!=='工讀生';
+function dim(y,m){return new Date(y,m+1,0).getDate();}
+function fdow(y,m){const d=new Date(y,m,1).getDay();return d===0?6:d-1;}
+function ds(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function todayDs(){const t=new Date();return ds(t.getFullYear(),t.getMonth(),t.getDate());}
+function getShifts(si,date){return(schedule[si]||{})[date]||[];}
+function setShifts(si,date,arr){if(!schedule[si])schedule[si]={};schedule[si][date]=arr;queueSave();}
+function storeName(si){return(stores.find(s=>s.id===si)||{name:'?'}).name;}
+function storeColor(si){return(stores.find(s=>s.id===si)||stores[0]).color;}
+function roleShort(r){return r==='工讀生'?'PT':r==='店長'?'長':r==='代理店長'?'代':'正';}
+function rolePill(r){const c=r==='工讀生'?'rp-pt':r==='店長'?'rp-mgr':r==='代理店長'?'rp-dep':'rp-full';return`<span class="rp ${c}">${r}</span>`;}
+function initEmp(id){if(!mustOff[id])mustOff[id]=new Set();if(!wantOff[id])wantOff[id]=new Set();if(!workDays[id])workDays[id]=new Set();}
+employees.forEach(e=>initEmp(e.id));
+employees.forEach(e=>{if(!e.tags)e.tags=[];});
+// 每店每班（早班/晚班 皆同）的職務人數需求：例如 刀手2人、前台1人
+let storeDutyReq={};
+function getDutyReq(si){return storeDutyReq[si]??{knife:0,front:0};}
+function setDutyReq(si,knife,front){storeDutyReq[si]={knife:Math.max(0,Math.min(9,knife)),front:Math.max(0,Math.min(9,front))};}
+
+// 個人本月已選休假天數（必休+想休 合計，無論是否核准）
+function getPersonalOffCount(empId){return(mustOff[empId]?.size||0)+(wantOff[empId]?.size||0);}
+
+// 計算某日「全公司」的休假狀況：必休人員、想休人員、核准想休人員、是否衝突
+// （四間店所有正職合計，每日休假上限為全公司共用，不分店）
+function getOffStatus(date){
+  const ftEmps=employees.filter(e=>isFT(e.role));
+  const must=ftEmps.filter(e=>(mustOff[e.id]||new Set()).has(date));
+  const want=ftEmps.filter(e=>(wantOff[e.id]||new Set()).has(date));
+  const limit=getOffLimit();
+  const mustCount=must.length;
+  const remaining=Math.max(0,limit-mustCount);
+  const mustOverLimit=mustCount>limit; // 必休本身就已超過上限：無法靠取消想休解決，需特別處理人力
+  const wantConflict=want.length>remaining; // 想休超過剩餘名額（含必休已吃滿、想休還想再休的情況）
+  const conflict=mustOverLimit||wantConflict;
+  let approvedWant;
+  if(!wantConflict){approvedWant=want;}
+  else{
+    const resolved=conflictResolution[date];
+    approvedWant=resolved?want.filter(e=>resolved.has(e.id)):[];
+  }
+  return{must,want,approvedWant,limit,mustCount,remaining,conflict,mustOverLimit,wantConflict,
+    effectiveIds:new Set([...must.map(e=>e.id),...approvedWant.map(e=>e.id)])};
+}
+// 此員工這天是否「實際生效休假」（必休、或想休且已核准/未衝突）
+function isEmpOffEffective(empId,date){
+  const e=employees.find(x=>x.id===empId);
+  if(!e||!isFT(e.role))return false;
+  return getOffStatus(date).effectiveIds.has(empId);
+}
+// 此員工這天的休假標記："must" | "want" | null
+function getOffMark(empId,date){
+  if((mustOff[empId]||new Set()).has(date))return'must';
+  if((wantOff[empId]||new Set()).has(date))return'want';
+  return null;
+}
+// 3態循環：無 → 必休 → 想休 → 無；回傳 true 表示成功變更
+function cycleFtOff(empId,date){
+  initEmp(empId);
+  const m=mustOff[empId],w=wantOff[empId];
+  if(m.has(date)){m.delete(date);w.add(date);return true;}
+  if(w.has(date)){w.delete(date);return true;}
+  const max=getOffMax(empId);
+  if(getPersonalOffCount(empId)>=max){showToast(`已達月休${max}天上限`,'err');return false;}
+  m.add(date);return true;
+}
+function shiftTime(s){
+  if(s.type==='m')return`${times.mS}–${times.mE}`;
+  if(s.type==='e')return`${times.eS}–${times.eE}`;
+  if(s.type==='p')return`${s.ptS||ptSlots[0]?.start||'10:30'}–${s.ptE||ptSlots[0]?.end||'19:30'}`;
+  if(s.type==='h')return`${s.hS||holidayDefaultTime.hS}–${s.hE||holidayDefaultTime.hE}`;
+  return'休';
+}
+function defaultPtTime(){return ptSlots[0]?{s:ptSlots[0].start,e:ptSlots[0].end}:{s:'10:30',e:'19:30'};}
+
+// ═══════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════
+function goPane(name,btn){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pane-'+name).classList.add('on');
+  if(btn)btn.classList.add('on');
+  if(name==='schedule')renderSchedule();
+  if(name==='request')renderRequest();
+  if(name==='ai')renderAI();
+  if(name==='settings')renderSettings();
+  if(name==='emp-portal')renderEmpPortal();
+}
+
+// ═══════════════════════════════════════
+// STORE TABS
+// ═══════════════════════════════════════
+function buildStoreTabs(){
+  document.getElementById('storeTabBar').innerHTML=stores.map(s=>`
+    <button class="stab${s.id===curStore?' on':''}" onclick="setStore(${s.id})"
+      style="${s.id===curStore?`border-bottom-color:${s.color};`:''}">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;"></span>${s.name}
+    </button>`).join('')+
+    `<button class="stab-add" onclick="goPane('settings',document.querySelectorAll('.nb')[3])">＋ 新增分店</button>`;
+}
+function setStore(id){curStore=id;buildStoreTabs();renderCal();renderCalSummary();}
+
+// ═══════════════════════════════════════
+// SCHEDULE
+// ═══════════════════════════════════════
+function renderSchedule(){
+  if(!stores.find(s=>s.id===curStore))curStore=stores[0]?.id||1;
+  buildStoreTabs();renderCalSummary();renderCal();
+}
+function renderCalSummary(){
+  const total=dim(Y,M);let shifts=0,empty=0,cross=0;
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d),s=getShifts(curStore,date).filter(x=>x.type!=='o');
+    shifts+=s.length;
+    const req=getReq(curStore,date);
+    if(s.filter(x=>x.type==='m').length<req.m||s.filter(x=>x.type==='e').length<req.e||s.filter(x=>x.type==='p').length<req.p||s.filter(x=>x.type==='h').length<req.h)empty++;
+    s.forEach(x=>{const e=employees.find(em=>em.id===x.empId);if(e&&e.mainStore!==curStore)cross++;});
+  }
+  const def=storeDefaultReq[curStore]??{m:1,e:1,p:1};
+  document.getElementById('calSummary').innerHTML=`
+    <div class="sc"><div class="sl">${storeName(curStore)} 本月班次</div><div class="sv">${shifts}</div></div>
+    <div class="sc${empty>6?' warn':''}"><div class="sl">未達人數天數</div><div class="sv">${empty}</div></div>
+    <div class="sc"><div class="sl">跨店支援</div><div class="sv">${cross}次</div></div>
+    <div class="sc"><div class="sl">本店員工</div><div class="sv">${employees.filter(e=>e.mainStore===curStore).length}人</div></div>
+    <div class="sc link" onclick="openReqEditor(${curStore})" title="點擊設定每日需求人數">
+      <div class="sl">每日需求 ✏️</div><div class="sv" style="font-size:13px;margin-top:3px;">早${def.m} 晚${def.e} PT${def.p}</div>
+    </div>`;
+}
+
+function renderCal(){
+  const total=dim(Y,M),fd=fdow(Y,M),today=todayDs();
+  let html='<div class="cal-head"><div></div>'+DAYS.map((d,i)=>`<div class="cdh${i===5?' sat':i===6?' sun':''}">${d}</div>`).join('')+'</div>';
+  for(let w=0;w<6;w++){
+    let row='',has=false;
+    for(let dow=0;dow<7;dow++){
+      const col=w*7+dow,dn=col-fd+1;
+      if(dn<1||dn>total){row+=`<div class="cc other"></div>`;continue;}
+      has=true;
+      const date=ds(Y,M,dn),isToday=date===today;
+      const shifts=getShifts(curStore,date);
+      const req=getReq(curStore,date);
+      const sp=specialDates[date];
+      const mC=shifts.filter(s=>s.type==='m').length,eC=shifts.filter(s=>s.type==='e').length,pC=shifts.filter(s=>s.type==='p').length,hC=shifts.filter(s=>s.type==='h').length;
+      let chips='';
+      for(let i=mC;i<req.m;i++)chips+=`<div class="chip empty"><span class="cn">缺早班</span></div>`;
+      for(let i=eC;i<req.e;i++)chips+=`<div class="chip empty"><span class="cn">缺晚班</span></div>`;
+      for(let i=pC;i<req.p;i++)chips+=`<div class="chip empty"><span class="cn">缺工讀</span></div>`;
+      for(let i=hC;i<req.h;i++)chips+=`<div class="chip empty"><span class="cn">缺節日班</span></div>`;
+      shifts.forEach((s,idx)=>{
+        const emp=employees.find(e=>e.id===s.empId);if(!emp)return;
+        const cls=s.type==='m'?'m':s.type==='e'?'e':s.type==='p'?'p':s.type==='h'?'h':'o';
+        const t=shiftTime(s);
+        // Find what other store this emp is assigned on this date
+        let storeTag='';
+        if(emp.mainStore!==curStore){
+          storeTag=`<span class="cstore" style="background:${storeColor(emp.mainStore)}">${storeName(emp.mainStore)}</span>`;
+        }
+        const editable=s.type==='p'||s.type==='h';
+        chips+=`<div class="chip ${cls}">
+          <span class="cr">${roleShort(emp.role)}</span>
+          <span class="cn">${emp.name}</span>${storeTag}
+          <span class="ct${editable?' editable':''}" ${editable?`onclick="openPtEdit(${curStore},'${date}',${idx},event)"`:''}>${t}</span>
+          <button class="cdel" onclick="delShift(${curStore},'${date}',${idx},event)">✕</button>
+        </div>`;
+      });
+      const badge=sp?(sp.type==='closed'?`<span class="cdn-badge closed">公休${sp.name?`·${sp.name}`:''}</span>`:`<span class="cdn-badge holiday">${sp.name?`${sp.name}・`:''}節日${sp.headcount}人</span>`):'';
+      const spCls=sp?(sp.type==='closed'?' closed':' holiday'):'';
+      row+=`<div class="cc${isToday?' today':''}${dow===5?' sat':dow===6?' sun':''}${spCls}">
+        <div class="cdn">${dn}${badge}</div>${chips}
+        <button class="addcbtn" onclick="openShiftAdd(${curStore},'${date}')">＋ 排班</button>
+      </div>`;
+    }
+    if(has){
+      html+=`<div class="cal-week"><div class="cwn" style="font-size:9px;">W${getWN(Y,M,Math.max(1,(w*7-fd+1)))}</div>${row}</div>`;
+    }
+  }
+  document.getElementById('calGrid').innerHTML=html;
+}
+function getWN(y,m,d){const date=new Date(y,m,Math.max(1,d)),soy=new Date(y,0,1);return Math.ceil(((date-soy)/86400000+soy.getDay()+1)/7);}
+function delShift(si,date,idx,e){e.stopPropagation();const arr=[...getShifts(si,date)];arr.splice(idx,1);setShifts(si,date,arr);renderCal();renderCalSummary();}
+
+// ═══════════════════════════════════════
+// SHIFT MODAL — show existing assignments on date
+// ═══════════════════════════════════════
+function openShiftAdd(si,date){
+  pendingCell={si,date};
+  document.getElementById('smTitle').textContent=`${storeName(si)} ${date.slice(5)} 排班`;
+  const all=employees.filter(e=>e.mainStore===si||e.supportStores.includes(si))
+    .sort((a,b)=>{
+      const ra=a.mainStore===si?-1:a.supportStores.indexOf(si);
+      const rb=b.mainStore===si?-1:b.supportStores.indexOf(si);
+      return ra-rb;
+    });
+  document.getElementById('smEmp').innerHTML=all.map(e=>{
+    const work=!isFT(e.role)&&(workDays[e.id]||new Set()).has(date);
+    let tag;
+    if(isFT(e.role)){
+      const mark=getOffMark(e.id,date);
+      const eff=isEmpOffEffective(e.id,date);
+      if(mark==='must')tag='⛔必休';
+      else if(mark==='want')tag=eff?'⛔想休(已確定)':'⚠想休(協調中-仍可排)';
+      else tag='✓上班';
+    }else{
+      tag=work?'✓有填上班':'－未填';
+    }
+    // check if already assigned somewhere today
+    const busyStore=stores.find(st=>getShifts(st.id,date).some(s=>s.empId===e.id&&s.type!=='o'));
+    const busyTag=busyStore?` 📍${busyStore.name}`:'';
+    const tagTxt=(e.tags||[]).length?` [${e.tags.join('・')}]`:'';
+    const roleTag=e.mainStore===si?'主店':`支援${e.supportStores.indexOf(si)+1}`;
+    return`<option value="${e.id}">[${roleTag}] ${e.name}（${e.role}）${tagTxt}${tag}${busyTag}</option>`;
+  }).join('');
+  document.getElementById('smType').value=specialDates[date]?.type==='holiday'?'h':'m';
+  const dft=defaultPtTime();
+  buildPtSlotOpts(document.getElementById('smPtSlot'),dft.s,dft.e);
+  document.getElementById('smPS').value=dft.s;
+  document.getElementById('smPE').value=dft.e;
+  const sp=specialDates[date];
+  document.getElementById('smHS').value=sp?.hS||holidayDefaultTime.hS;
+  document.getElementById('smHE').value=sp?.hE||holidayDefaultTime.hE;
+  onSmType();
+  document.getElementById('shiftMod').classList.remove('hidden');
+}
+function onSmType(){
+  const t=document.getElementById('smType').value;
+  document.getElementById('smPtFg').classList.toggle('dn',t!=='p');
+  document.getElementById('smHFg').classList.toggle('dn',t!=='h');
+}
+function buildPtSlotOpts(sel,s,e){
+  sel.innerHTML=ptSlots.map(sl=>`<option value="${sl.id}">${sl.name}（${sl.start}–${sl.end}）</option>`).join('')+`<option value="custom">自訂時間…</option>`;
+  const match=ptSlots.find(sl=>sl.start===s&&sl.end===e);
+  sel.value=match?match.id:'custom';
+}
+function onPtSlot(){
+  const v=document.getElementById('smPtSlot').value;
+  if(v==='custom')return;
+  const sl=ptSlots.find(s=>s.id==v);
+  if(sl){document.getElementById('smPS').value=sl.start;document.getElementById('smPE').value=sl.end;}
+}
+function confirmShift(){
+  const type=document.getElementById('smType').value;
+  const empId=parseInt(document.getElementById('smEmp').value);
+  const{si,date}=pendingCell;
+  const arr=[...getShifts(si,date)];
+  if(type!=='o'&&arr.some(s=>s.empId===empId&&s.type!=='o')){showToast('此員工當天已有班次','err');return;}
+  const entry={type,empId};
+  if(type==='p'){
+    const sv=document.getElementById('smPtSlot').value;
+    if(sv==='custom'){entry.ptS=document.getElementById('smPS').value;entry.ptE=document.getElementById('smPE').value;}
+    else{const sl=ptSlots.find(s=>s.id==sv);entry.ptS=sl?sl.start:document.getElementById('smPS').value;entry.ptE=sl?sl.end:document.getElementById('smPE').value;}
+  }else if(type==='h'){
+    entry.hS=document.getElementById('smHS').value;
+    entry.hE=document.getElementById('smHE').value;
+  }
+  arr.push(entry);setShifts(si,date,arr);closeM('shiftMod');renderCal();renderCalSummary();showToast('班次已新增','ok');
+}
+function openPtEdit(si,date,idx,e){
+  if(e.target.classList.contains('cdel'))return;
+  const s=getShifts(si,date)[idx];if(s.type!=='p'&&s.type!=='h')return;
+  pendingPtEdit={si,date,idx};
+  const emp=employees.find(em=>em.id===s.empId);
+  if(s.type==='p'){
+    document.getElementById('ptETitle').textContent=`工讀時間 — ${emp?.name||''}`;
+    document.getElementById('ptESlotFg').classList.remove('dn');
+    buildPtSlotOpts(document.getElementById('ptESlot'),s.ptS,s.ptE);
+    document.getElementById('ptES').value=s.ptS||defaultPtTime().s;
+    document.getElementById('ptEE').value=s.ptE||defaultPtTime().e;
+  }else{
+    document.getElementById('ptETitle').textContent=`節日班時間 — ${emp?.name||''}`;
+    document.getElementById('ptESlotFg').classList.add('dn');
+    document.getElementById('ptES').value=s.hS||holidayDefaultTime.hS;
+    document.getElementById('ptEE').value=s.hE||holidayDefaultTime.hE;
+  }
+  document.getElementById('ptEditMod').classList.remove('hidden');
+}
+function onPtESlot(){const v=document.getElementById('ptESlot').value;if(v==='custom')return;const sl=ptSlots.find(s=>s.id==v);if(sl){document.getElementById('ptES').value=sl.start;document.getElementById('ptEE').value=sl.end;}}
+function confirmPtEdit(){
+  const{si,date,idx}=pendingPtEdit;const arr=[...getShifts(si,date)];
+  const s=arr[idx];
+  if(s.type==='p'){
+    const sv=document.getElementById('ptESlot').value;
+    let ptS,ptE;
+    if(sv==='custom'||!sv){ptS=document.getElementById('ptES').value;ptE=document.getElementById('ptEE').value;}
+    else{const sl=ptSlots.find(x=>x.id==sv);ptS=sl?sl.start:document.getElementById('ptES').value;ptE=sl?sl.end:document.getElementById('ptEE').value;}
+    arr[idx]={...s,ptS,ptE};
+  }else{
+    arr[idx]={...s,hS:document.getElementById('ptES').value,hE:document.getElementById('ptEE').value};
+  }
+  setShifts(si,date,arr);closeM('ptEditMod');renderCal();showToast('時間已更新','ok');
+}
+
+// ═══════════════════════════════════════
+// REQUEST PANE
+// ═══════════════════════════════════════
+function renderRequest(){
+  queueSave();
+  updateConflictBadge();
+  const total=dim(Y,M);
+  const full=employees.filter(e=>isFT(e.role)).sort((a,b)=>a.mainStore-b.mainStore);
+  const pt=employees.filter(e=>!isFT(e.role)).sort((a,b)=>a.mainStore-b.mainStore);
+  let fHtml=`<div class="req-block"><div class="req-hdr"><span class="rh-t">正職 · 休假</span><span class="rh-s">點選日期循環：無 → 必休 → 想休 → 無</span><span class="rh-b full">店長/代理/正職</span></div>
+  <div style="padding:8px 14px;font-size:11px;color:var(--ink2);display:flex;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--bd);background:var(--sur2);align-items:center;">
+    <span><span class="dpb must legend"></span> 必休（一定排休）</span>
+    <span><span class="dpb must conflict legend"></span> 必休但全公司當日已超出休假上限（需留意人力）</span>
+    <span><span class="dpb want legend"></span> 想休（在名額內自動成立）</span>
+    <span><span class="dpb want conflict legend"></span> 想休但超出名額（需協調）</span>
+  </div>
+  <table class="req-table"><thead><tr><th style="min-width:110px;">員工</th><th style="min-width:60px;">月休上限</th><th>休假日</th></tr></thead><tbody>`;
+  full.forEach(e=>{
+    const max=getOffMax(e.id);
+    const m=mustOff[e.id]||new Set(), w=wantOff[e.id]||new Set();
+    const tot=getPersonalOffCount(e.id);
+    let dp='<div class="dpick">';
+    for(let d=1;d<=total;d++){
+      const date=ds(Y,M,d);
+      const mark=getOffMark(e.id,date);
+      let cls='dpb';
+      if(mark==='must'){
+        cls+=' must';
+        const status=getOffStatus(date);
+        if(status.mustOverLimit)cls+=' conflict';
+      }
+      else if(mark==='want'){
+        cls+=' want';
+        const status=getOffStatus(date);
+        if(status.conflict&&!status.effectiveIds.has(e.id))cls+=' conflict';
+      }
+      const title=mark==='must'?'必休（點擊改為想休）':mark==='want'?'想休（點擊取消）':'點擊設為必休';
+      dp+=`<button class="${cls}" onclick="onCycleFtOff(${e.id},'${date}')" title="${title}">${d}</button>`;
+    }
+    dp+=`</div><div class="dpc${tot>max?' warn':''}">必休${m.size}天・想休${w.size}天・共 ${tot}/${max}天${tot===max?' ✓':tot>max?' ⚠超過':''}</div>`;
+    fHtml+=`<tr><td><div class="enc"><div class="eav" style="background:${e.color}">${e.name[0]}</div>
+      <div><div style="font-weight:600;font-size:12px;">${e.name}</div><div style="font-size:10px;color:var(--ink3);">${e.role}・${storeName(e.mainStore)}</div></div></div></td>
+      <td><div style="display:flex;align-items:center;gap:4px;"><input type="number" min="0" max="31" value="${max}" class="numinp" onchange="setOffMax(${e.id},this.value)"><span style="font-size:10px;color:var(--ink3);">天</span></div></td>
+      <td>${dp}</td></tr>`;
+  });
+  fHtml+=`</tbody></table></div>`;
+  let pHtml=`<div class="req-block"><div class="req-hdr"><span class="rh-t">工讀生 · 上班日</span><span class="rh-s">填想上班日期</span><span class="rh-b pt">工讀生</span></div>
+  <table class="req-table"><thead><tr><th style="min-width:110px;">員工</th><th>可上班日</th></tr></thead><tbody>`;
+  pt.forEach(e=>{
+    const works=workDays[e.id]||new Set();
+    let dp='<div class="dpick">';
+    for(let d=1;d<=total;d++){const date=ds(Y,M,d),isW=works.has(date);dp+=`<button class="dpb${isW?' work':''}" onclick="tWork(${e.id},'${date}')">${d}</button>`;}
+    dp+=`</div><div class="dpc">已填 ${works.size} 天</div>`;
+    pHtml+=`<tr><td><div class="enc"><div class="eav" style="background:${e.color}">${e.name[0]}</div>
+      <div><div style="font-weight:600;font-size:12px;">${e.name}</div><div style="font-size:10px;color:var(--ink3);">${e.role}・${storeName(e.mainStore)}</div></div></div></td>
+      <td>${dp}</td></tr>`;
+  });
+  pHtml+=`</tbody></table></div>`;
+  document.getElementById('reqLayout').innerHTML=fHtml+pHtml;
+  document.getElementById('conflictSection').innerHTML=renderOffConflictSection();
+}
+function onCycleFtOff(id,date){
+  if(cycleFtOff(id,date)){renderRequest();}
+}
+function tWork(id,date){initEmp(id);const s=workDays[id];if(s.has(date))s.delete(date);else s.add(date);renderRequest();}
+function setOffMax(id,val){empOffMax[id]=Math.max(0,Math.min(31,parseInt(val)||0));renderRequest();}
+
+// ═══════════════════════════════════════
+// OFF-DAY CONFLICT COORDINATION
+// ═══════════════════════════════════════
+function updateConflictBadge(){
+  const total=dim(Y,M);let cnt=0;
+  for(let d=1;d<=total;d++){if(getOffStatus(ds(Y,M,d)).conflict)cnt++;}
+  const el=document.getElementById('pendBadge');
+  if(el)el.textContent=cnt>0?`${cnt}項需協調`:'';
+}
+function scrollToConflicts(){
+  const el=document.getElementById('conflictSection');
+  if(el&&el.innerHTML.trim())el.scrollIntoView({behavior:'smooth',block:'start'});
+  else showToast('目前沒有需要協調的休假衝突','ok');
+}
+function renderOffConflictSection(){
+  const total=dim(Y,M);
+  const items=[];
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d);
+    const status=getOffStatus(date);
+    if(status.conflict)items.push({date,d,status});
+  }
+  if(!items.length)return'';
+  let html=`<div class="req-block" style="margin-top:14px;"><div class="req-hdr" style="background:#fff3df;"><span class="rh-t">⚠️ 休假衝突待協調</span><span class="rh-s">全公司每日休假上限（合計） ${getOffLimit()} 人。必休人數本身超標，或想休人數超過剩餘名額時，皆會列在這裡</span></div><div style="padding:12px 14px;">`;
+  items.forEach(it=>{
+    const{date,d,status}=it;
+    const resolved=conflictResolution[date]||new Set();
+    const involvedStoreIds=[...new Set([...status.must,...status.want].map(e=>e.mainStore))];
+    const staffingHtml=involvedStoreIds.map(si=>{
+      const shifts=getShifts(si,date).filter(s=>s.type!=='o');
+      const req=getReq(si,date);
+      const mC=shifts.filter(s=>s.type==='m').length,eC=shifts.filter(s=>s.type==='e').length,pC=shifts.filter(s=>s.type==='p').length;
+      return`${storeName(si)}：早${mC}/${req.m}・晚${eC}/${req.e}・工讀${pC}/${req.p}`;
+    }).join('　｜　');
+    const checkedCount=resolved.size;
+    const over=checkedCount-status.remaining;
+    html+=`<div style="background:var(--sur2);border:1px solid var(--bd);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px;">${M+1}/${d}（${DAYS[(new Date(date).getDay()+6)%7]}） — 全公司每日休假上限${status.limit}人・必休${status.mustCount}人・剩餘名額${status.remaining}人・想休${status.want.length}人</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;">相關分店人力：${staffingHtml||'－'}</div>`;
+    if(status.mustOverLimit){
+      html+=`<div class="issue-row e" style="margin-bottom:6px;">
+        <span>🔴</span><span><strong>必休人數(${status.mustCount}人)已超過全公司上限(${status.limit}人)</strong>，這些人一定休假無法調整：${status.must.map(e=>`${e.name}（${storeName(e.mainStore)}）`).join('、')}。請確認當日各店人力是否足夠，必要時調整當日排班需求或人員支援。</span>
+      </div>`;
+    }
+    if(status.want.length>0){
+      html+=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+      ${status.want.map(e=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" data-date="${date}" value="${e.id}" ${resolved.has(e.id)?'checked':''} onchange="onConflictCheck(this,${status.remaining},${status.limit})">
+        <span style="width:18px;height:18px;border-radius:50%;background:${e.color};display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">${e.name[0]}</span>${e.name}<span style="font-size:9px;color:var(--ink3);">（${storeName(e.mainStore)}）</span>
+      </label>`).join('')}
+      </div>
+      <div id="warn-${date}" class="issue-row w" style="${over>0?'':'display:none;'}margin-bottom:6px;">
+        <span>⚠</span><span>已超過每日休假上限（${status.limit}人），將額外核准 ${over>0?over:0} 人，請確認當日人力足夠</span>
+      </div>
+      <button class="bi" onclick="saveConflictResolution('${date}')">儲存核准名單</button>`;
+    }
+    html+=`</div>`;
+  });
+  html+=`</div></div>`;
+  return html;
+}
+function onConflictCheck(el,remaining,limit){
+  const group=document.querySelectorAll(`input[data-date="${el.dataset.date}"]`);
+  const checked=[...group].filter(x=>x.checked).length;
+  const warnEl=document.getElementById(`warn-${el.dataset.date}`);
+  if(!warnEl)return;
+  const over=checked-remaining;
+  if(over>0){
+    warnEl.querySelector('span:last-child').textContent=`已超過每日休假上限（${limit}人），將額外核准 ${over} 人，請確認當日人力足夠`;
+    warnEl.style.display='';
+  }else{
+    warnEl.style.display='none';
+  }
+}
+function saveConflictResolution(date){
+  const group=document.querySelectorAll(`input[data-date="${date}"]`);
+  const ids=new Set([...group].filter(x=>x.checked).map(x=>parseInt(x.value)));
+  conflictResolution[date]=ids;
+  renderRequest();showToast('已儲存核准名單','ok');
+}
+
+// ═══════════════════════════════════════
+// EMPLOYEE PORTAL
+// ═══════════════════════════════════════
+function renderEmpPortal(){
+  if(loggedEmpId){renderEmpDash();}
+  else{
+    document.getElementById('empLogin').classList.remove('dn');
+    document.getElementById('empDash').classList.add('dn');
+    const sel=document.getElementById('empLoginSel');
+    sel.innerHTML=employees.map(e=>`<option value="${e.id}">${e.name}（${e.role}・${storeName(e.mainStore)}）</option>`).join('');
+    document.getElementById('empLoginPin').value='';
+    document.getElementById('empLoginErr').textContent='';
+  }
+}
+function empLogin(){
+  const id=parseInt(document.getElementById('empLoginSel').value);
+  const pin=document.getElementById('empLoginPin').value.trim();
+  const emp=employees.find(e=>e.id===id);
+  if(!emp||pin!==(emp.pin||'1234')){
+    document.getElementById('empLoginErr').textContent='PIN 碼錯誤，請重試。';return;
+  }
+  loggedEmpId=id;
+  const now=new Date();Y=now.getFullYear();M=now.getMonth(); // 員工登入時固定回到目前真實月份
+  document.getElementById('empLogin').classList.add('dn');
+  document.getElementById('empDash').classList.remove('dn');
+  renderEmpDash();
+}
+function empLogout(){loggedEmpId=null;renderEmpPortal();}
+// 找出某員工在某天被排定的班次（跨所有分店搜尋，因為可能支援別店）
+function findEmpShiftOnDate(empId,date){
+  for(const st of stores){
+    const s=getShifts(st.id,date).find(x=>x.empId===empId&&x.type!=='o');
+    if(s)return{...s,storeId:st.id};
+  }
+  return null;
+}
+function renderEmpShiftCal(emp){
+  const total=dim(Y,M),fd=fdow(Y,M),today=todayDs();
+  const tl={m:'早班',e:'晚班',p:'工讀',h:'節日班'};
+  let html=DAYS.map((d,i)=>`<div class="emc-dh${i===5?' sat':i===6?' sun':''}">${d}</div>`).join('');
+  for(let i=0;i<fd;i++)html+=`<div class="emc-cell other"></div>`;
+  const myShifts=[]; // 用於下方列表
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d);
+    const dow=(new Date(date).getDay()+6)%7;
+    const shift=findEmpShiftOnDate(emp.id,date);
+    let cls='emc-cell';
+    let tag='';
+    if(shift){
+      cls+=` shift-${shift.type}`;
+      const storeTag=shift.storeId!==emp.mainStore?storeName(shift.storeId):'';
+      tag=`${tl[shift.type]}${storeTag?`<div class="emc-tag shift-store">${storeTag}</div>`:''}`;
+      myShifts.push({date,d,shift});
+    }
+    if(date===today)cls+=' today';
+    if(dow===5)cls+=' sat';if(dow===6)cls+=' sun';
+    html+=`<div class="${cls}">
+      <div class="emc-dn">${d}</div>
+      ${tag?`<div class="emc-tag">${tag}</div>`:''}
+    </div>`;
+  }
+  document.getElementById('empShiftGrid').innerHTML=html;
+  document.getElementById('empShiftTitle').textContent=`我的班表（${Y}年${M+1}月，共 ${myShifts.length} 班）`;
+  const listEl=document.getElementById('empShiftList');
+  if(!myShifts.length){
+    listEl.innerHTML='<div style="font-size:12px;color:var(--ink3);">本月目前還沒有被排定班次</div>';
+    return;
+  }
+  listEl.innerHTML=myShifts.map(({date,d,shift})=>{
+    const dow=DAYS[(new Date(date).getDay()+6)%7];
+    const t=shiftTime(shift);
+    const storeTag=shift.storeId!==emp.mainStore?`<span class="estore">📍${storeName(shift.storeId)}（支援）</span>`:`<span class="estore">${storeName(shift.storeId)}</span>`;
+    return`<div class="eshift-row">
+      <span class="esd">${M+1}/${d}（${dow}）</span>
+      <span class="est ${shift.type}">${tl[shift.type]}</span>
+      ${storeTag}
+      <span class="estime">${t}</span>
+    </div>`;
+  }).join('');
+}
+function renderEmpMonthLockBanner(monthLocked){
+  const el=document.getElementById('empMonthLockBanner');
+  if(!el)return;
+  const now=new Date();
+  const isViewingCurrentRealMonth=(Y===now.getFullYear()&&M===now.getMonth());
+  if(monthLocked){
+    el.innerHTML=`<div class="issue-row w" style="margin-bottom:10px;">
+      <span>🔒</span><span><strong>尚未開放填寫 ${Y}年${M+1}月</strong>，將於每月 <strong>${openDay}號</strong> 開放下個月的休假/上班日填寫，目前僅供預覽，日期暫時無法點選。</span>
+    </div>`;
+  }else if(isViewingCurrentRealMonth&&!isNextMonthOpen()){
+    const daysLeft=openDay-now.getDate();
+    el.innerHTML=`<div class="issue-row w" style="margin-bottom:10px;">
+      <span>📅</span><span>下個月的休假將於 <strong>${openDay}號</strong> 開放填寫（還有 ${daysLeft} 天），記得屆時提早安排喔！</span>
+    </div>`;
+  }else{
+    el.innerHTML='';
+  }
+}
+// 員工專用月份切換：限制只能看「上個月～下個月」，避免員工亂跳到很久以後/以前
+function empChangeMonth(delta){
+  let ny=Y,nm=M+delta;
+  if(nm<0){nm=11;ny--;}
+  if(nm>11){nm=0;ny++;}
+  const now=new Date();
+  const diffMonths=(ny-now.getFullYear())*12+(nm-now.getMonth());
+  if(diffMonths<-1||diffMonths>1){showToast('員工端僅能查看上個月～下個月','err');return;}
+  Y=ny;M=nm;
+  renderEmpDash();
+}
+function renderEmpDash(){
+  queueSave();
+  const emp=employees.find(e=>e.id===loggedEmpId);if(!emp)return;
+  const total=dim(Y,M);const ft=isFT(emp.role);
+  document.getElementById('empDashAv').style.background=emp.color;
+  document.getElementById('empDashAv').textContent=emp.name[0];
+  document.getElementById('empDashName').textContent=emp.name;
+  document.getElementById('empDashRole').textContent=`${emp.role}・${storeName(emp.mainStore)}`;
+  const lblEl=document.getElementById('empMLbl');if(lblEl)lblEl.textContent=`${Y}/${String(M+1).padStart(2,'0')}`;
+  const nowD=new Date(),diffM=(Y-nowD.getFullYear())*12+(M-nowD.getMonth());
+  const prevBtn=document.getElementById('empPrevM'),nextBtn=document.getElementById('empNextM');
+  if(prevBtn)prevBtn.disabled=diffM<=-1;
+  if(nextBtn)nextBtn.disabled=diffM>=1;
+  document.getElementById('empCalTitle').textContent=ft?`${Y}年${M+1}月 休假設定（點選循環：無→必休→想休→無）`:`${Y}年${M+1}月 上班日（點選填報）`;
+  const monthLocked=!isMonthEditableForEmp(Y,M);
+  renderEmpMonthLockBanner(monthLocked);
+  const maxOff=getOffMax(loggedEmpId);
+  const m=mustOff[loggedEmpId]||new Set(), w=wantOff[loggedEmpId]||new Set();
+  const works=workDays[loggedEmpId]||new Set();
+  const tot=m.size+w.size;
+  // count dates pending coordination
+  let pendingCnt=0;
+  if(ft){
+    w.forEach(date=>{const status=getOffStatus(date);if(status.conflict&&!status.effectiveIds.has(loggedEmpId))pendingCnt++;});
+  }
+  let statsHtml='';
+  if(ft){
+    statsHtml=`
+      <div class="emp-stat"><div class="esl">月休上限</div><div class="esv">${maxOff}天</div></div>
+      <div class="emp-stat"><div class="esl">必休</div><div class="esv">${m.size}天</div></div>
+      <div class="emp-stat"><div class="esl">想休</div><div class="esv">${w.size}天</div></div>
+      <div class="emp-stat${tot>maxOff?' warn':''}"><div class="esl">共計/上限</div><div class="esv">${tot}/${maxOff}</div></div>
+      <div class="emp-stat${pendingCnt>0?' warn':''}"><div class="esl">待協調</div><div class="esv">${pendingCnt}天</div></div>`;
+  }else{
+    statsHtml=`<div class="emp-stat"><div class="esl">已填上班日</div><div class="esv">${works.size}天</div></div>`;
+  }
+  document.getElementById('empStatRow').innerHTML=statsHtml;
+  // 我的班表（實際被排定的早/晚/工讀/節日班，含跨店支援）
+  renderEmpShiftCal(emp);
+  // calendar
+  const fd=fdow(Y,M),today=todayDs();
+  let html=DAYS.map((d,i)=>`<div class="emc-dh${i===5?' sat':i===6?' sun':''}">${d}</div>`).join('');
+  for(let i=0;i<fd;i++)html+=`<div class="emc-cell other"></div>`;
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d);
+    const dow=(new Date(date).getDay()+6)%7;
+    let cls='emc-cell';let tag='';
+    const sp=specialDates[date];
+    if(sp)cls+=sp.type==='closed'?' closed':' holiday';
+    if(ft){
+      const mark=getOffMark(loggedEmpId,date);
+      if(mark==='must'){
+        cls+=' off';
+        const status=getOffStatus(date);
+        tag=status.mustOverLimit?'必休⚠':'必休';
+      }
+      else if(mark==='want'){
+        const status=getOffStatus(date);
+        if(status.effectiveIds.has(loggedEmpId)){cls+=' off';tag='想休✓';}
+        else{cls+=' pending';tag='協調中';}
+      }
+    }else{
+      if(works.has(date)){cls+=' off';tag='✓';}
+    }
+    if(date===today)cls+=' today';
+    if(dow===5)cls+=' sat';if(dow===6)cls+=' sun';
+    if(monthLocked)cls+=' maxed';
+    const onclick=monthLocked?'':(ft?`empCycleOff('${date}')`:`empToggleWork('${date}')`);
+    let badge='';
+    if(ft){
+      const status=getOffStatus(date);
+      const totalOff=status.must.length+status.want.length;
+      if(totalOff>0){
+        const bcls=totalOff>status.limit?'over':totalOff===status.limit?'full':'ok';
+        badge=`<div class="emc-badge ${bcls}">${totalOff}/${status.limit}</div>`;
+      }
+    }
+    let leftBadge='';
+    if(sp){
+      leftBadge=sp.type==='closed'
+        ?`<div class="emc-badge-left closed" title="公休${sp.name?`・${sp.name}`:''}">公休${sp.name?`·${sp.name}`:''}</div>`
+        :`<div class="emc-badge-left holiday" title="節日特殊班${sp.name?`・${sp.name}`:''}・${sp.headcount}人・${sp.hS}–${sp.hE}">${sp.name||'節日'}</div>`;
+    }
+    html+=`<div class="${cls}" onclick="${onclick}">${badge}${leftBadge}
+      <div class="emc-dn">${d}</div>
+      ${tag?`<div class="emc-tag">${tag}</div>`:''}
+    </div>`;
+  }
+  document.getElementById('empCalGrid').innerHTML=html;
+  // off-day overview (visibility for coordination)
+  const wrap=document.getElementById('empOffOverviewWrap');
+  if(ft){wrap.style.display='';document.getElementById('empOffOverview').innerHTML=renderEmpOffOverview(emp);}
+  else{wrap.style.display='none';}
+  // off-day detail list
+  document.getElementById('empPendList').innerHTML=renderEmpOffList(emp);
+}
+function renderEmpOffOverview(emp){
+  const total=dim(Y,M);
+  const ftEmps=employees.filter(e=>isFT(e.role)).sort((a,b)=>a.id===loggedEmpId?-1:b.id===loggedEmpId?1:a.mainStore-b.mainStore);
+  const rows=[];
+  ftEmps.forEach(e=>{
+    const m=mustOff[e.id]||new Set(), w=wantOff[e.id]||new Set();
+    if(!m.size&&!w.size)return;
+    let chips='';
+    for(let d=1;d<=total;d++){
+      const date=ds(Y,M,d);
+      if(m.has(date)){
+        chips+=`<span class="offchip must" title="必休">${M+1}/${d}</span>`;
+      }else if(w.has(date)){
+        const status=getOffStatus(date);
+        const ok=status.effectiveIds.has(e.id);
+        chips+=`<span class="offchip want${ok?'':' conflict'}" title="${ok?'想休（已確定）':'想休（協調中，名額已滿）'}">${M+1}/${d}${ok?'':'⚠'}</span>`;
+      }
+    }
+    rows.push({e,chips});
+  });
+  if(!rows.length)return'<div style="font-size:12px;color:var(--ink3);">本月目前還沒有人排休</div>';
+  return`<table class="req-table"><thead><tr><th style="min-width:90px;">員工</th><th style="min-width:60px;">分店</th><th>休假日期</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr${r.e.id===loggedEmpId?' style="background:#fff8f0;"':''}>
+    <td style="font-size:12px;font-weight:${r.e.id===loggedEmpId?'700':'500'};">${r.e.name}${r.e.id===loggedEmpId?'（我）':''}</td>
+    <td style="font-size:11px;color:var(--ink3);">${storeName(r.e.mainStore)}</td>
+    <td>${r.chips}</td>
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+function renderEmpOffList(emp){
+  const m=mustOff[loggedEmpId]||new Set(), w=wantOff[loggedEmpId]||new Set();
+  const dates=[...m,...w].filter(d=>d.startsWith(`${Y}-${String(M+1).padStart(2,'0')}`)).sort();
+  if(!dates.length)return'<div style="font-size:12px;color:var(--ink3);">尚未設定本月休假日</div>';
+  return dates.map(date=>{
+    const mark=m.has(date)?'must':'want';
+    let statusTxt,statusCls;
+    if(mark==='must'){
+      const status=getOffStatus(date);
+      if(status.mustOverLimit){statusTxt=`必休（一定排休，但全公司當日已超出上限${status.limit}人，請留意人力）`;statusCls='pending';}
+      else{statusTxt='必休（一定排休）';statusCls='approved';}
+    }else{
+      const status=getOffStatus(date);
+      if(status.effectiveIds.has(loggedEmpId)){statusTxt='想休（已確定）';statusCls='approved';}
+      else{statusTxt=`協調中（名額剩${status.remaining}人，請與同事協調或等待主管核准）`;statusCls='pending';}
+    }
+    return`<div class="pending-item">
+      <span class="pi-date">${date.slice(5)}</span>
+      <span>${mark==='must'?'必休':'想休'}</span>
+      <span class="pi-status ${statusCls}">${statusTxt}</span>
+    </div>`;
+  }).join('');
+}
+function empCycleOff(date){
+  if(!loggedEmpId)return;
+  if(!isMonthEditableForEmp(Y,M)){showToast(`${Y}年${M+1}月尚未開放填寫，將於每月${openDay}號開放下個月`,'err');return;}
+  const emp=employees.find(e=>e.id===loggedEmpId);if(!emp||!isFT(emp.role))return;
+  if(cycleFtOff(loggedEmpId,date)){renderEmpDash();showToast('已更新休假設定','ok');}
+}
+function empToggleWork(date){
+  if(!loggedEmpId)return;
+  if(!isMonthEditableForEmp(Y,M)){showToast(`${Y}年${M+1}月尚未開放填寫，將於每月${openDay}號開放下個月`,'err');return;}
+  initEmp(loggedEmpId);const s=workDays[loggedEmpId];
+  if(s.has(date))s.delete(date);else s.add(date);
+  renderEmpDash();showToast(s.has(date)?'已填為上班日':'已取消');
+}
+
+// ═══════════════════════════════════════
+// PT SLOT SETTINGS
+// ═══════════════════════════════════════
+function renderPtSlots(){
+  document.getElementById('ptSlotList').innerHTML=ptSlots.map(sl=>`
+    <div class="pt-slot-row">
+      <span class="pt-sn">${sl.name}</span><span class="pt-st">${sl.start} – ${sl.end}</span>
+      <button class="pt-se" onclick="openEditSlot(${sl.id})">✏️</button>
+      <button class="pt-sd" onclick="delSlot(${sl.id})">✕</button>
+    </div>`).join('');
+}
+function openAddSlot(){editSlotId=null;document.getElementById('slotTitle').textContent='新增時段範本';document.getElementById('slotName').value='';document.getElementById('slotS').value='10:30';document.getElementById('slotE').value='19:30';document.getElementById('slotMod').classList.remove('hidden');}
+function openEditSlot(id){editSlotId=id;const sl=ptSlots.find(s=>s.id===id);if(!sl)return;document.getElementById('slotTitle').textContent='編輯時段範本';document.getElementById('slotName').value=sl.name;document.getElementById('slotS').value=sl.start;document.getElementById('slotE').value=sl.end;document.getElementById('slotMod').classList.remove('hidden');}
+function saveSlot(){
+  const name=document.getElementById('slotName').value.trim(),start=document.getElementById('slotS').value,end=document.getElementById('slotE').value;
+  if(!name){showToast('請輸入名稱','err');return;}
+  if(start>=end){showToast('結束時間必須晚於開始時間','err');return;}
+  if(editSlotId){const sl=ptSlots.find(s=>s.id===editSlotId);Object.assign(sl,{name,start,end});showToast('已更新','ok');}
+  else{ptSlots.push({id:Date.now(),name,start,end});showToast(`已新增「${name}」`,'ok');}
+  closeM('slotMod');renderPtSlots();
+}
+function delSlot(id){if(ptSlots.length<=1){showToast('至少保留一個','err');return;}ptSlots=ptSlots.filter(s=>s.id!==id);renderPtSlots();showToast('已刪除');}
+
+// ═══════════════════════════════════════
+// STORE MANAGEMENT
+// ═══════════════════════════════════════
+function addStore(){newStoreColor=EC[stores.length%EC.length];document.getElementById('storeNewName').value='';document.getElementById('storeColors').innerHTML=EC.map(c=>`<div class="cs${c===newStoreColor?' on':''}" style="background:${c}" onclick="pickSC('${c}',this)"></div>`).join('');document.getElementById('storeMod').classList.remove('hidden');}
+function pickSC(c,el){newStoreColor=c;document.querySelectorAll('#storeColors .cs').forEach(e=>e.classList.remove('on'));el.classList.add('on');}
+function confirmAddStore(){const name=document.getElementById('storeNewName').value.trim();if(!name){showToast('請輸入名稱','err');return;}const id=Date.now();stores.push({id,name,color:newStoreColor});curStore=id;closeM('storeMod');renderSettings();renderSchedule();showToast(`已新增 ${name}`,'ok');}
+function delStore(id){if(stores.length<=1){showToast('至少保留一間分店','err');return;}const s=stores.find(st=>st.id===id);if(!s||!confirm(`確定刪除「${s.name}」？`))return;stores=stores.filter(st=>st.id!==id);delete schedule[id];if(curStore===id)curStore=stores[0].id;renderSettings();renderSchedule();showToast('分店已刪除');}
+function updateStoreName(id,val){const s=stores.find(st=>st.id===id);if(s){s.name=val;buildStoreTabs();}}
+
+// ═══════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════
+function renderSettings(){
+  queueSave();
+  document.getElementById('storeNameSet').innerHTML=stores.map(s=>{
+    const duty=getDutyReq(s.id);
+    return`<div class="snrow">
+      <div class="sdot" style="background:${s.color}"></div>
+      <input class="sninp" value="${s.name}" oninput="updateStoreName(${s.id},this.value)" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--bd)'">
+      <label style="font-size:11px;color:var(--ink2);display:flex;align-items:center;gap:4px;white-space:nowrap;">每班<span class="tagb knife" style="margin:0;">刀手</span>
+        <input type="number" min="0" max="9" value="${duty.knife}" class="numinp" style="width:36px;" onchange="setDutyReq(${s.id},parseInt(this.value)||0,getDutyReq(${s.id}).front);renderSettings();">
+      </label>
+      <label style="font-size:11px;color:var(--ink2);display:flex;align-items:center;gap:4px;white-space:nowrap;"><span class="tagb front" style="margin:0;">前台</span>
+        <input type="number" min="0" max="9" value="${duty.front}" class="numinp" style="width:36px;" onchange="setDutyReq(${s.id},getDutyReq(${s.id}).knife,parseInt(this.value)||0);renderSettings();">
+      </label>
+      <button class="dsbtn" onclick="delStore(${s.id})">刪除</button>
+    </div>`;
+  }).join('');
+  document.getElementById('globalOffLimitInput').value=globalOffLimit;
+  document.getElementById('openDayInput').value=openDay;
+  renderPtSlots();renderEmpTbl();renderSpecialDateList();
+  document.getElementById('empCnt').textContent=`共${employees.length}人`;
+}
+function setGlobalOffLimit(val){globalOffLimit=Math.max(0,Math.min(30,parseInt(val)||0));showToast('全公司每日休假上限已更新','ok');}
+function setOpenDay(val){openDay=Math.max(1,Math.min(28,parseInt(val)||20));showToast('開放填寫日期已更新','ok');if(loggedEmpId)renderEmpDash();}
+function changeAdminPin(){
+  const v=document.getElementById('newAdminPinInput').value.trim();
+  if(!v||v.length<4){showToast('密碼至少需要4個字元','err');return;}
+  adminPin=v;
+  localStorage.setItem('sched_adminPin',v);
+  document.getElementById('newAdminPinInput').value='';
+  queueSave(); // 同步到雲端，讓其他裝置登入管理後台也用新密碼
+  showToast('管理者密碼已更新','ok');
+}
+
+// ═══════════════════════════════════════
+// 節日 / 特殊營業日設定
+// ═══════════════════════════════════════
+function onSpecialTypeChange(){
+  const t=document.getElementById('specialTypeInput').value;
+  document.getElementById('specialCountFg').classList.toggle('dn',t!=='holiday');
+  document.getElementById('specialTimeFg').classList.toggle('dn',t!=='holiday');
+}
+function addSpecialDate(){
+  const date=document.getElementById('specialDateInput').value;
+  if(!date){showToast('請選擇日期','err');return;}
+  const type=document.getElementById('specialTypeInput').value;
+  const name=document.getElementById('specialNameInput').value.trim();
+  if(type==='holiday'){
+    const headcount=Math.max(1,Math.min(20,parseInt(document.getElementById('specialCountInput').value)||5));
+    const hS=document.getElementById('specialStartInput').value||holidayDefaultTime.hS;
+    const hE=document.getElementById('specialEndInput').value||holidayDefaultTime.hE;
+    specialDates[date]={type:'holiday',name,headcount,hS,hE};
+  }else{
+    specialDates[date]={type:'closed',name};
+  }
+  renderSpecialDateList();
+  if(date.startsWith(`${Y}-${String(M+1).padStart(2,'0')}`)){renderCal();renderCalSummary();}
+  showToast('已新增特殊日期','ok');
+}
+function delSpecialDate(date){
+  delete specialDates[date];
+  renderSpecialDateList();
+  if(date.startsWith(`${Y}-${String(M+1).padStart(2,'0')}`)){renderCal();renderCalSummary();}
+}
+function renderSpecialDateList(){
+  const dates=Object.keys(specialDates).sort();
+  const el=document.getElementById('specialDateList');
+  if(!el)return;
+  if(!dates.length){el.innerHTML='<div style="font-size:12px;color:var(--ink3);">尚未設定特殊日期</div>';return;}
+  el.innerHTML=dates.map(date=>{
+    const sp=specialDates[date];
+    const d=new Date(date);
+    const namePart=sp.name?`「${sp.name}」`:'';
+    const label=sp.type==='closed'?`公休${namePart}（不營業，當天無需排班）`:`節日${namePart}・需求${sp.headcount}人（不分早晚班）・${sp.hS}–${sp.hE}`;
+    return`<div class="snrow">
+      <span style="font-family:var(--m);font-size:12px;min-width:96px;">${date}（${DAYS[(new Date(date).getDay()+6)%7]}）</span>
+      <span class="cdn-badge ${sp.type==='closed'?'closed':'holiday'}" style="margin-left:0;">${sp.type==='closed'?'公休':'節日'}</span>
+      <span style="font-size:12px;flex:1;">${label}</span>
+      <button class="dsbtn" onclick="delSpecialDate('${date}')">移除</button>
+    </div>`;
+  }).join('');
+}
+function saveTimes(){times={mS:document.getElementById('mS').value,mE:document.getElementById('mE').value,eS:document.getElementById('eS').value,eE:document.getElementById('eE').value};showToast('班別時間已更新','ok');renderCal();}
+function renderEmpTbl(){
+  const total=dim(Y,M);
+  // count this month's m/e shifts per employee across all stores
+  const mCnt={},eCnt={},totCnt={};employees.forEach(e=>{mCnt[e.id]=0;eCnt[e.id]=0;totCnt[e.id]=0;});
+  stores.forEach(st=>{for(let d=1;d<=total;d++){getShifts(st.id,ds(Y,M,d)).forEach(s=>{
+    if(s.type==='m')mCnt[s.empId]=(mCnt[s.empId]||0)+1;
+    if(s.type==='e')eCnt[s.empId]=(eCnt[s.empId]||0)+1;
+    if(s.type!=='o')totCnt[s.empId]=(totCnt[s.empId]||0)+1;
+  });}});
+  // 公平性比較：分別在「無支援能力」「有支援能力」兩組內部計算平均值（兩組工作型態本來就不同，不適合混在一起比）
+  const noSupportFt=employees.filter(e=>isFT(e.role)&&!e.supportStores.length);
+  const hasSupportFt=employees.filter(e=>isFT(e.role)&&e.supportStores.length>0);
+  const avgOf=(list)=>{const c=list.map(e=>totCnt[e.id]||0);return c.length?c.reduce((a,b)=>a+b,0)/c.length:0;};
+  const avgNoSupport=avgOf(noSupportFt),avgHasSupport=avgOf(hasSupportFt);
+  document.getElementById('empTbl').innerHTML=`<thead><tr><th>姓名</th><th>職位</th><th>主店</th><th>可支援</th><th>標籤</th><th>本月早/晚班</th><th>本月總天數</th><th>PIN</th><th>操作</th></tr></thead>
+  <tbody>${employees.map(e=>{
+    const meCell=isFT(e.role)
+      ?`<span style="font-family:var(--m);font-size:12px;">${mCnt[e.id]}<span style="color:var(--morn-t);">早</span> / ${eCnt[e.id]}<span style="color:var(--eve-t);">晚</span></span>`
+      :'<span style="color:var(--ink3);font-size:10px;">－</span>';
+    let totCell='<span style="color:var(--ink3);font-size:10px;">－</span>';
+    if(isFT(e.role)){
+      const t=totCnt[e.id]||0;
+      const groupAvg=e.supportStores.length?avgHasSupport:avgNoSupport;
+      const diff=t-groupAvg;
+      const flagged=Math.abs(diff)>=3; // 跟同組(有無支援能力)平均差3天以上時特別標示
+      totCell=`<span style="font-family:var(--m);font-size:13px;font-weight:700;${flagged?'color:var(--red);':''}">${t}天</span>${flagged?` <span style="font-size:9px;color:var(--red);">⚠${diff>0?'偏多':'偏少'}</span>`:''}`;
+    }
+    const tagCell=(e.tags||[]).map(t=>`<span class="tagb ${t==='刀手'?'knife':'front'}">${t}</span>`).join('')||'<span style="color:var(--ink3);font-size:10px;">－</span>';
+    return`<tr>
+    <td style="display:flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:50%;background:${e.color};display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;">${e.name[0]}</span>${e.name}</td>
+    <td>${rolePill(e.role)}</td>
+    <td><span class="spp"><span style="width:7px;height:7px;border-radius:50%;background:${storeColor(e.mainStore)};display:inline-block;"></span>${storeName(e.mainStore)}</span></td>
+    <td>${e.supportStores.map((i,idx)=>`<span class="spp"><span style="width:7px;height:7px;border-radius:50%;background:${storeColor(i)};display:inline-block;"></span>${idx+1}.${storeName(i)}</span>`).join(' ')||'<span style="color:var(--ink3);font-size:10px;">無</span>'}</td>
+    <td>${tagCell}</td>
+    <td>${meCell}</td>
+    <td>${totCell}</td>
+    <td style="font-family:var(--m);font-size:11px;color:var(--ink3);">${e.pin||'1234'}</td>
+    <td style="display:flex;gap:4px;"><button class="bi" onclick="openEditEmp(${e.id})">編輯</button><button class="bi del" onclick="delEmp(${e.id})">刪除</button></td>
+  </tr>`;
+  }).join('')}</tbody>`;
+}
+
+// ═══════════════════════════════════════
+// EMPLOYEE MODAL
+// ═══════════════════════════════════════
+function openAddEmp(){editEmpId=null;document.getElementById('emTitle').textContent='新增員工';document.getElementById('emName').value='';document.getElementById('emRole').value='正職';document.getElementById('emPin').value='';document.getElementById('emTagKnife').checked=false;document.getElementById('emTagFront').checked=false;buildEmStoreOpts(stores[0]?.id||1,[]);selColor=EC[0];buildColorGrid('emColors',EC);document.getElementById('empMod').classList.remove('hidden');}
+function openEditEmp(id){editEmpId=id;const e=employees.find(em=>em.id===id);if(!e)return;document.getElementById('emTitle').textContent='編輯員工';document.getElementById('emName').value=e.name;document.getElementById('emRole').value=e.role;document.getElementById('emPin').value=e.pin||'1234';document.getElementById('emTagKnife').checked=(e.tags||[]).includes('刀手');document.getElementById('emTagFront').checked=(e.tags||[]).includes('前台');buildEmStoreOpts(e.mainStore,e.supportStores);selColor=e.color;buildColorGrid('emColors',EC);document.getElementById('empMod').classList.remove('hidden');}
+let editSupportStores=[]; // 編輯員工視窗中，暫存「可支援分店」依優先順序排列的陣列
+function buildEmStoreOpts(main,supports){
+  document.getElementById('emStore').innerHTML=stores.map(s=>`<option value="${s.id}"${s.id===main?' selected':''}>${s.name}</option>`).join('');
+  editSupportStores=[...supports];
+  renderEmSupportList(main);
+}
+function renderEmSupportList(main){
+  editSupportStores=editSupportStores.filter(id=>id!==main); // 主店不該出現在支援清單裡
+  const available=stores.filter(s=>s.id!==main&&!editSupportStores.includes(s.id));
+  const selectedHtml=editSupportStores.length?editSupportStores.map((sid,i)=>{
+    const s=stores.find(x=>x.id===sid);if(!s)return'';
+    return`<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--sur2);border-radius:var(--rs);margin-bottom:4px;">
+      <span style="font-family:var(--m);font-size:10px;color:var(--ink3);width:14px;flex-shrink:0;">${i+1}</span>
+      <span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block;flex-shrink:0;"></span>
+      <span style="font-size:12px;flex:1;">${s.name}</span>
+      <button type="button" onclick="moveSupportStore(${i},-1)" ${i===0?'disabled':''} style="background:none;border:1px solid var(--bd);border-radius:3px;width:20px;height:20px;font-size:11px;color:var(--ink2);cursor:pointer;" title="提高優先順序">↑</button>
+      <button type="button" onclick="moveSupportStore(${i},1)" ${i===editSupportStores.length-1?'disabled':''} style="background:none;border:1px solid var(--bd);border-radius:3px;width:20px;height:20px;font-size:11px;color:var(--ink2);cursor:pointer;" title="降低優先順序">↓</button>
+      <button type="button" onclick="removeSupportStore(${i})" style="background:none;border:1px solid #f0c0b0;border-radius:3px;width:20px;height:20px;font-size:11px;color:var(--red);cursor:pointer;" title="移除">✕</button>
+    </div>`;
+  }).join(''):'<div style="font-size:11px;color:var(--ink3);padding:4px 0;">尚未設定支援分店，數字越小代表優先順序越高</div>';
+  const availableHtml=available.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">${available.map(s=>`
+    <button type="button" onclick="addSupportStore(${s.id})" style="display:flex;align-items:center;gap:5px;padding:4px 9px;border:1px dashed var(--bd2);border-radius:12px;background:var(--sur);font-size:11px;color:var(--ink2);cursor:pointer;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;"></span>＋${s.name}
+    </button>`).join('')}</div>`:'';
+  document.getElementById('emSupport').innerHTML=`<div>${selectedHtml}</div>${availableHtml}`;
+}
+function addSupportStore(id){editSupportStores.push(id);renderEmSupportList(parseInt(document.getElementById('emStore').value));}
+function removeSupportStore(idx){editSupportStores.splice(idx,1);renderEmSupportList(parseInt(document.getElementById('emStore').value));}
+function moveSupportStore(idx,dir){
+  const ni=idx+dir;if(ni<0||ni>=editSupportStores.length)return;
+  [editSupportStores[idx],editSupportStores[ni]]=[editSupportStores[ni],editSupportStores[idx]];
+  renderEmSupportList(parseInt(document.getElementById('emStore').value));
+}
+function onEmStoreChange(){
+  const main=parseInt(document.getElementById('emStore').value);
+  renderEmSupportList(main);
+}
+function saveEmp(){
+  const name=document.getElementById('emName').value.trim();if(!name){showToast('請輸入姓名','err');return;}
+  const role=document.getElementById('emRole').value,mainStore=parseInt(document.getElementById('emStore').value);
+  const supportStores=editSupportStores.filter(id=>id!==mainStore); // 陣列順序即為支援優先順序
+  const pin=document.getElementById('emPin').value.trim()||'1234';
+  const tags=[];
+  if(document.getElementById('emTagKnife').checked)tags.push('刀手');
+  if(document.getElementById('emTagFront').checked)tags.push('前台');
+  if(editEmpId){Object.assign(employees.find(em=>em.id===editEmpId),{name,role,mainStore,supportStores,color:selColor,pin,tags});showToast('已更新','ok');}
+  else{const id=Date.now();employees.push({id,name,role,mainStore,supportStores,color:selColor,pin,tags});initEmp(id);showToast(`已新增 ${name}`,'ok');}
+  closeM('empMod');renderEmpTbl();document.getElementById('empCnt').textContent=`共${employees.length}人`;
+}
+function delEmp(id){const e=employees.find(em=>em.id===id);if(!e||!confirm(`確定刪除「${e.name}」？`))return;employees=employees.filter(em=>em.id!==id);renderEmpTbl();document.getElementById('empCnt').textContent=`共${employees.length}人`;showToast('已刪除');}
+function buildColorGrid(cid,colors){document.getElementById(cid).innerHTML=colors.map(c=>`<div class="cs${c===selColor?' on':''}" style="background:${c}" onclick="pickColor('${c}',this,'${cid}')"></div>`).join('');}
+function pickColor(c,el,cid){selColor=c;document.querySelectorAll(`#${cid} .cs`).forEach(e=>e.classList.remove('on'));el.classList.add('on');}
+
+// ═══════════════════════════════════════
+// REQ EDITOR
+// ═══════════════════════════════════════
+function openReqEditor(si){
+  reqEdStore=si;document.getElementById('reqEdTitle').textContent=`${storeName(si)} · 每日需求人數`;
+  const def=storeDefaultReq[si]??{m:1,e:1,p:1};
+  document.getElementById('defM').value=def.m;document.getElementById('defE').value=def.e;document.getElementById('defP').value=def.p;
+  const total=dim(Y,M);let html='';
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d),ov=dailyReq[si]?.[date];
+    const dow=DAYS[(new Date(date).getDay()+6)%7];
+    const isSat=new Date(date).getDay()===6,isSun=new Date(date).getDay()===0;
+    html+=`<div class="req-day-row${ov?' ov':''}">
+      <span style="font-family:var(--m);font-size:11px;min-width:52px;color:${isSun?'#b02828':isSat?'#2e50a8':'var(--ink2)'};">${M+1}/${d}（${dow}）</span>
+      <label style="font-size:11px;color:var(--morn-t);display:flex;align-items:center;gap:3px;">早<input type="number" min="0" max="9" data-date="${date}" data-type="m" value="${ov?ov.m:''}" placeholder="${def.m}" class="rdinp" onfocus="this.style.borderColor='var(--morn-b)'" onblur="this.style.borderColor='var(--bd)'"></label>
+      <label style="font-size:11px;color:var(--eve-t);display:flex;align-items:center;gap:3px;">晚<input type="number" min="0" max="9" data-date="${date}" data-type="e" value="${ov?ov.e:''}" placeholder="${def.e}" class="rdinp" onfocus="this.style.borderColor='var(--eve-b)'" onblur="this.style.borderColor='var(--bd)'"></label>
+      <label style="font-size:11px;color:var(--pt-t);display:flex;align-items:center;gap:3px;">PT<input type="number" min="0" max="9" data-date="${date}" data-type="p" value="${ov?ov.p:''}" placeholder="${def.p}" class="rdinp" onfocus="this.style.borderColor='var(--pt-b)'" onblur="this.style.borderColor='var(--bd)'"></label>
+      ${ov?`<button onclick="clearDayReq(${si},'${date}')" style="background:none;border:none;color:var(--ink3);font-size:10px;cursor:pointer;">清除</button>`:''}
+    </div>`;
+  }
+  document.getElementById('reqDayList').innerHTML=html;
+  document.getElementById('reqEdMod').classList.remove('hidden');
+}
+function saveReqEditor(){
+  const si=reqEdStore;
+  storeDefaultReq[si]={m:Math.max(0,parseInt(document.getElementById('defM').value)||0),e:Math.max(0,parseInt(document.getElementById('defE').value)||0),p:Math.max(0,parseInt(document.getElementById('defP').value)||0)};
+  if(!dailyReq[si])dailyReq[si]={};
+  const def=storeDefaultReq[si],byDate={};
+  document.querySelectorAll('#reqDayList input[data-date]').forEach(inp=>{const date=inp.dataset.date,type=inp.dataset.type;if(!byDate[date])byDate[date]={};const v=inp.value.trim();byDate[date][type]=v===''?null:Math.max(0,parseInt(v)||0);});
+  Object.entries(byDate).forEach(([date,vals])=>{
+    if(Object.values(vals).some(v=>v!==null)){dailyReq[si][date]={m:vals.m??def.m,e:vals.e??def.e,p:vals.p??def.p};}
+    else delete dailyReq[si][date];
+  });
+  closeM('reqEdMod');renderCalSummary();renderCal();showToast('需求人數已更新','ok');
+}
+function clearDayReq(si,date){if(dailyReq[si])delete dailyReq[si][date];openReqEditor(si);}
+
+// ═══════════════════════════════════════
+// AUTO SCHEDULE
+// ═══════════════════════════════════════
+function clearStoreSchedule(si){if(!confirm(`確定清除 ${storeName(si)} 本月所有班次？`))return;if(schedule[si])schedule[si]={};renderCal();renderCalSummary();showResult('已清除本月班表');}
+function showResult(msg){const el=document.getElementById('autoResult');el.textContent=msg;el.classList.remove('dn');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('dn'),4000);}
+function getAvailableEmps(si){return employees.filter(e=>e.mainStore===si||e.supportStores.includes(si));}
+function isEmpBusy(empId,date){return stores.some(st=>getShifts(st.id,date).some(s=>s.empId===empId&&s.type!=='o'));}
+function ftCanWork(emp,date){if(!isFT(emp.role))return false;if(isEmpOffEffective(emp.id,date))return false;if(isEmpBusy(emp.id,date))return false;return true;}
+function ptCanWork(emp,date){if(isFT(emp.role))return false;if(!(workDays[emp.id]||new Set()).has(date))return false;if(isEmpBusy(emp.id,date))return false;return true;}
+// typeCnt 為該員工目前「同類班別」(早或晚)累積次數；優先排給累積數較少的人，使早晚班分配平均
+function empScore(emp,si,cnt,typeCnt){
+  // 排序優先順序（數字越小越優先被排進這個班次）：
+  // 1. 在「主店」排班時：沒有支援能力的人（supportStores為空）優先於有支援能力的人——
+  //    沒有支援能力的人只能靠主店這一條路上班，主店缺口有限時應優先讓給他們。
+  // 2. 在「支援店」排班時：只有在「主店本身缺口已經沒有更適合的人」時才會被選中，
+  //    懲罰值需與①對稱，否則支援者會在總天數較低時搶下別人主店的缺口，導致無支援能力者反而被擠掉。
+  // 3. 總上班天數最少的人優先（確保每人實際上班天數盡量平均）
+  // 4. 同類班別(早/晚)次數較少的人優先（早晚班內部也盡量平均，次於③）
+  const total=cnt[emp.id]||0;
+  const sameType=typeCnt[emp.id]||0;
+  let s=total*1000+sameType;
+  if(emp.mainStore===si){
+    if(emp.supportStores.length>0)s+=50000; // 主店裡，有支援能力的人排序往後，讓無支援能力者優先
+  }else{
+    const idx=emp.supportStores.indexOf(si);
+    s+=50000+(idx>=0?idx:emp.supportStores.length); // 支援店一律視同「主店裡有支援能力者」同等級懲罰，
+    // 確保只有在該店主店候選人都不夠用時，支援者才會被排進來；不會因為總天數較低就搶在主店候選人前面
+  }
+  return s;
+}
+// ═══════════════════════════════════════
+// 一鍵排班（全部分店）核心邏輯
+// ═══════════════════════════════════════
+// 設計重點：以「日期」為主軸、橫跨5間店統一規劃，而不是「先排完整個1號店、才排3號店…」。
+// 原因：若逐店各自跑完整個月，後面的店看不到前面店『稍後會需要』這個人去支援的情況，
+// 容易出現「某人在A店其實當天可以留在主店，卻已經被A店排去支援，B店反而更缺人」的不合理結果。
+// 改成逐日掃描後，每一天都分兩階段：
+//   階段1：5間店各自先用『自己的主店員工』盡量填滿當天缺口（不動用任何支援者）
+//   階段2：階段1跑完後，统一彙整當天「還沒填滿」的缺口，從『有支援能力、當天還有空』的人中
+//          挑最適合的人逐一遞補——這樣才能確保「主店優先」是對全公司5間店同時生效，不是只在單店內部生效。
+function computeAutoScheduleAll(){
+  const totalDays=dim(Y,M);
+  const cnt={},mCnt={},eCnt={};
+  employees.forEach(e=>{cnt[e.id]=0;mCnt[e.id]=0;eCnt[e.id]=0;});
+  stores.forEach(st=>{for(let d=1;d<=totalDays;d++){getShifts(st.id,ds(Y,M,d)).forEach(s=>{
+    if(s.type!=='o')cnt[s.empId]=(cnt[s.empId]||0)+1;
+    if(s.type==='m')mCnt[s.empId]=(mCnt[s.empId]||0)+1;
+    if(s.type==='e')eCnt[s.empId]=(eCnt[s.empId]||0)+1;
+  });}});
+  const resultByStore={},skippedByStore={};
+  stores.forEach(st=>{resultByStore[st.id]=[];skippedByStore[st.id]=[];});
+  const dayAssigned={}; // dateStr → Set<empId>，跨5間店共用，確保同一人同一天不會被排兩個地方
+
+  // 預先算好每間店、每個職務標籤類別的可用人力池（含主店/支援店標記），供當天篩選用
+  const storeMeta=stores.map(st=>{
+    const allEmps=getAvailableEmps(st.id);
+    const ftEmps=allEmps.filter(e=>isFT(e.role));
+    const taggedPt=allEmps.filter(e=>!isFT(e.role)&&(e.tags||[]).includes('刀手'));
+    return{si:st.id,allEmps,meAll:[...ftEmps,...taggedPt],ptEmps:allEmps.filter(e=>!isFT(e.role))};
+  });
+
+  for(let d=1;d<=totalDays;d++){
+    const date=ds(Y,M,d);
+    if(!dayAssigned[date])dayAssigned[date]=new Set();
+    stores.forEach(st=>{ // 把當天既有(手動排好)的班次也先標記為已佔用，避免重複指派
+      getShifts(st.id,date).filter(s=>s.type!=='o').forEach(s=>dayAssigned[date].add(s.empId));
+    });
+
+    // 每店每天的缺口追蹤：{si: {m, e, p, h}} 還差幾人
+    const need={};
+    storeMeta.forEach(({si})=>{
+      const existing=getShifts(si,date);
+      const req=getReq(si,date);
+      const mC=existing.filter(s=>s.type==='m').length,eC=existing.filter(s=>s.type==='e').length;
+      const pC=existing.filter(s=>s.type==='p').length,hC=existing.filter(s=>s.type==='h').length;
+      need[si]={m:Math.max(0,req.m-mC),e:Math.max(0,req.e-eC),p:Math.max(0,req.p-pC),h:Math.max(0,req.h-hC)};
+    });
+
+    // 階段1：各店僅用「主店員工」盡量填滿早/晚班缺口
+    function fillFromMain(si,type,typeCnt){
+      const meta=storeMeta.find(m=>m.si===si);
+      while(need[si][type]>0){
+        const cands=meta.meAll.filter(e=>e.mainStore===si&&(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id));
+        if(!cands.length)break;
+        cands.sort((a,b)=>empScore(a,si,cnt,typeCnt)-empScore(b,si,cnt,typeCnt));
+        const p=cands[0];
+        resultByStore[si].push({date,type,empId:p.id});
+        dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;typeCnt[p.id]=(typeCnt[p.id]||0)+1;
+        need[si][type]--;
+      }
+    }
+    storeMeta.forEach(({si})=>{fillFromMain(si,'m',mCnt);fillFromMain(si,'e',eCnt);});
+
+    // 階段2：統一彙整所有店當天還剩的早/晚班缺口，從各店的支援名單中挑最適合的人遞補
+    function fillFromSupport(si,type,typeCnt){
+      const meta=storeMeta.find(m=>m.si===si);
+      while(need[si][type]>0){
+        const cands=meta.meAll.filter(e=>e.mainStore!==si&&(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id));
+        if(!cands.length){skippedByStore[si].push({date,type,reason:'無可用正職/刀手工讀(含支援)'});break;}
+        cands.sort((a,b)=>empScore(a,si,cnt,typeCnt)-empScore(b,si,cnt,typeCnt));
+        const p=cands[0];
+        resultByStore[si].push({date,type,empId:p.id});
+        dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;typeCnt[p.id]=(typeCnt[p.id]||0)+1;
+        need[si][type]--;
+      }
+    }
+    stores.forEach(st=>{fillFromSupport(st.id,'m',mCnt);});
+    stores.forEach(st=>{fillFromSupport(st.id,'e',eCnt);});
+
+    // 工讀(PT)缺口：比照早/晚班的分層邏輯——先用「主店」工讀生填滿，主店工讀生不夠時才動用支援店工讀生
+    const dft=defaultPtTime();
+    function fillPtFromMain(si){
+      const meta=storeMeta.find(m=>m.si===si);
+      while(need[si].p>0){
+        const cands=meta.ptEmps.filter(e=>e.mainStore===si&&ptCanWork(e,date)&&!dayAssigned[date].has(e.id))
+          .sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+        if(!cands.length)break;
+        const p=cands[0];
+        resultByStore[si].push({date,type:'p',empId:p.id,ptS:dft.s,ptE:dft.e});
+        dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;
+        need[si].p--;
+      }
+    }
+    function fillPtFromSupport(si){
+      const meta=storeMeta.find(m=>m.si===si);
+      while(need[si].p>0){
+        const cands=meta.ptEmps.filter(e=>e.mainStore!==si&&ptCanWork(e,date)&&!dayAssigned[date].has(e.id))
+          .sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+        if(!cands.length){skippedByStore[si].push({date,type:'p',reason:'無可用工讀生(含支援)'});break;}
+        const p=cands[0];
+        resultByStore[si].push({date,type:'p',empId:p.id,ptS:dft.s,ptE:dft.e});
+        dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;
+        need[si].p--;
+      }
+    }
+    stores.forEach(st=>fillPtFromMain(st.id)); // 階段1：各店先用自己主店工讀生盡量填滿
+    stores.forEach(st=>fillPtFromSupport(st.id)); // 階段2：統一彙整剩餘缺口，調度支援工讀生補位
+
+    // 節日特殊班：不分早晚班，全部員工(正職+工讀)一起排
+    storeMeta.forEach(({si,allEmps})=>{
+      if(need[si].h<=0)return;
+      const sp=specialDates[date];
+      const hTime={s:sp?.hS||holidayDefaultTime.hS,e:sp?.hE||holidayDefaultTime.hE};
+      while(need[si].h>0){
+        const cands=allEmps.filter(e=>(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id)).sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+        if(!cands.length){skippedByStore[si].push({date,type:'h',reason:'無可用人員'});break;}
+        const p=cands[0];
+        resultByStore[si].push({date,type:'h',empId:p.id,hS:hTime.s,hE:hTime.e});
+        dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;
+        need[si].h--;
+      }
+    });
+  }
+  return{resultByStore,skippedByStore};
+}
+function computeAutoSchedule(si){
+  const total=dim(Y,M),allEmps=getAvailableEmps(si);
+  const ftEmps=allEmps.filter(e=>isFT(e.role)),ptEmps=allEmps.filter(e=>!isFT(e.role));
+  // 工讀生若有「刀手」標籤，也可被排進早/晚班補缺口；「前台」標籤的工讀生只能排PT時段，不可進早晚班
+  const taggedPt=ptEmps.filter(e=>(e.tags||[]).includes('刀手'));
+  const meAll=[...ftEmps,...taggedPt];
+  // 候選池：比照「一鍵排班」的分層邏輯——先只看主店候選人，主店候選人都不夠用時才納入支援店候選人。
+  function meCandidatesMain(date){
+    return meAll.filter(e=>e.mainStore===si&&(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id));
+  }
+  function meCandidatesSupport(date){
+    return meAll.filter(e=>e.mainStore!==si&&(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id));
+  }
+  function meCandidates(date){
+    const main=meCandidatesMain(date);
+    return main.length?main:meCandidatesSupport(date);
+  }
+  const cnt={},mCnt={},eCnt={};employees.forEach(e=>{cnt[e.id]=0;mCnt[e.id]=0;eCnt[e.id]=0;});
+  stores.forEach(st=>{for(let d=1;d<=total;d++){getShifts(st.id,ds(Y,M,d)).forEach(s=>{
+    if(s.type!=='o')cnt[s.empId]=(cnt[s.empId]||0)+1;
+    if(s.type==='m')mCnt[s.empId]=(mCnt[s.empId]||0)+1;
+    if(s.type==='e')eCnt[s.empId]=(eCnt[s.empId]||0)+1;
+  });}});
+  const result=[],skipped=[],dayAssigned={};
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d),existing=getShifts(si,date),req=getReq(si,date);
+    const mC=existing.filter(s=>s.type==='m').length,eC=existing.filter(s=>s.type==='e').length,pC=existing.filter(s=>s.type==='p').length,hC=existing.filter(s=>s.type==='h').length;
+    if(!dayAssigned[date])dayAssigned[date]=new Set(existing.filter(s=>s.type!=='o').map(s=>s.empId));
+    for(let n=mC;n<req.m;n++){const cands=meCandidates(date).sort((a,b)=>empScore(a,si,cnt,mCnt)-empScore(b,si,cnt,mCnt));if(cands.length){const p=cands[0];result.push({date,type:'m',empId:p.id});dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;mCnt[p.id]=(mCnt[p.id]||0)+1;}else{skipped.push({date,type:'m',reason:'無可用正職/刀手工讀'});break;}}
+    for(let n=eC;n<req.e;n++){const cands=meCandidates(date).sort((a,b)=>empScore(a,si,cnt,eCnt)-empScore(b,si,cnt,eCnt));if(cands.length){const p=cands[0];result.push({date,type:'e',empId:p.id});dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;eCnt[p.id]=(eCnt[p.id]||0)+1;}else{skipped.push({date,type:'e',reason:'無可用正職/刀手工讀'});break;}}
+    const dft=defaultPtTime();
+    function ptCandidatesMain(date){return ptEmps.filter(e=>e.mainStore===si&&ptCanWork(e,date)&&!dayAssigned[date].has(e.id));}
+    function ptCandidatesSupport(date){return ptEmps.filter(e=>e.mainStore!==si&&ptCanWork(e,date)&&!dayAssigned[date].has(e.id));}
+    for(let n=pC;n<req.p;n++){
+      let cands=ptCandidatesMain(date).sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+      if(!cands.length)cands=ptCandidatesSupport(date).sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+      if(cands.length){const p=cands[0];result.push({date,type:'p',empId:p.id,ptS:dft.s,ptE:dft.e});dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;}else{skipped.push({date,type:'p',reason:'無可用工讀生'});break;}
+    }
+    // 節日特殊班：不分早晚班，全部員工(正職+工讀)一起排，依當日設定的時段
+    if(req.h>0){
+      const sp=specialDates[date];
+      const hTime={s:sp?.hS||holidayDefaultTime.hS,e:sp?.hE||holidayDefaultTime.hE};
+      for(let n=hC;n<req.h;n++){
+        const cands=allEmps.filter(e=>(isFT(e.role)?ftCanWork(e,date):ptCanWork(e,date))&&!dayAssigned[date].has(e.id)).sort((a,b)=>empScore(a,si,cnt,{})-empScore(b,si,cnt,{}));
+        if(cands.length){const p=cands[0];result.push({date,type:'h',empId:p.id,hS:hTime.s,hE:hTime.e});dayAssigned[date].add(p.id);cnt[p.id]=(cnt[p.id]||0)+1;}
+        else{skipped.push({date,type:'h',reason:'無可用人員'});break;}
+      }
+    }
+  }
+  return{result,skipped};
+}
+function applyResults(si,result){
+  result.forEach(r=>{
+    const arr=[...getShifts(si,r.date)];
+    if(arr.some(s=>s.empId===r.empId&&s.type!=='o'))return;
+    const e={type:r.type,empId:r.empId};
+    if(r.type==='p'){e.ptS=r.ptS;e.ptE=r.ptE;}
+    if(r.type==='h'){e.hS=r.hS;e.hE=r.hE;}
+    arr.push(e);setShifts(si,r.date,arr);
+  });
+}
+function buildDatePreview(result,skipped){
+  const byDate={};
+  [...result,...skipped].forEach(r=>{if(!byDate[r.date])byDate[r.date]=[];byDate[r.date].push(r);});
+  const tl={m:'早班',e:'晚班',p:'工讀',h:'節日班'};
+  let html='';
+  Object.keys(byDate).sort().forEach(date=>{
+    const d=parseInt(date.split('-')[2]);
+    html+=`<div class="pd">${M+1}/${d}（${DAYS[(new Date(date).getDay()+6)%7]}）</div>`;
+    byDate[date].forEach(r=>{
+      if(r.isSkip||r.reason){html+=`<div class="psk">⚠ ${tl[r.type]}：${r.reason}</div>`;}
+      else{const emp=employees.find(e=>e.id===r.empId);const t=r.type==='m'?`${times.mS}–${times.mE}`:r.type==='e'?`${times.eS}–${times.eE}`:r.type==='h'?`${r.hS}–${r.hE}`:`${r.ptS}–${r.ptE}`;html+=`<div class="ps2 ${r.type}">✦ ${tl[r.type]}：${emp?.name}（${emp?.role}）${t}</div>`;}
+    });
+  });
+  return html;
+}
+function runAutoSchedule(si){
+  const{result,skipped}=computeAutoSchedule(si);
+  if(!result.length&&!skipped.length){showToast('本月班表已完整','ok');return;}
+  document.getElementById('autoTitle').textContent=`${storeName(si)} 自動排班預覽`;
+  document.getElementById('autoSub').textContent=`新增 ${result.length} 個班次${skipped.length>0?`，${skipped.length} 個無法排`:''}`;
+  document.getElementById('autoPrev').innerHTML=buildDatePreview(result,skipped)||'無需補排';
+  pendingAutoResult={all:false,si,result};
+  document.getElementById('autoMod').classList.remove('hidden');
+}
+// 一鍵排班（全部分店）：以「日期」為主軸跨5間店統一規劃（見 computeAutoScheduleAll 說明），
+// 每一天都先讓各店主店員工填滿、再統一調度支援者，確保不會有「明明當天可以留在主店卻被排去支援別店」的情況。
+function runAutoScheduleAll(){
+  const original=schedule;
+  const clone=JSON.parse(JSON.stringify(schedule));
+  schedule=clone; // computeAutoScheduleAll 與 applyResults 都讀寫全域 schedule，先指向複本進行運算
+  const{resultByStore,skippedByStore}=computeAutoScheduleAll();
+  let totalNew=0,totalSkip=0;
+  stores.forEach(st=>{
+    applyResults(st.id,resultByStore[st.id]);
+    totalNew+=resultByStore[st.id].length;totalSkip+=skippedByStore[st.id].length;
+  });
+  schedule=original; // 計算與套用都在複本上完成，這裡先還原，等使用者確認預覽後才真正生效
+  if(!totalNew&&!totalSkip){showToast('全部分店本月班表已完整','ok');return;}
+  let prev='';
+  stores.forEach(st=>{
+    const result=resultByStore[st.id],skipped=skippedByStore[st.id];
+    if(!result.length&&!skipped.length)return;
+    prev+=`<div class="pd" style="font-size:13px;color:${storeColor(st.id)};border-top:1px solid var(--bd);padding-top:8px;margin-top:8px;">${storeName(st.id)}　(+${result.length}${skipped.length?`，${skipped.length}無法排`:''})</div>`;
+    prev+=buildDatePreview(result,skipped);
+  });
+  document.getElementById('autoTitle').textContent=`全部分店 一鍵排班預覽`;
+  document.getElementById('autoSub').textContent=`共新增 ${totalNew} 個班次（${stores.length}間店）${totalSkip>0?`，${totalSkip} 個無法排`:''}`;
+  document.getElementById('autoPrev').innerHTML=prev||'無需補排';
+  pendingAutoResult={all:true,clone};
+  document.getElementById('autoMod').classList.remove('hidden');
+}
+function applyAutoSchedule(){
+  if(!pendingAutoResult)return;
+  if(pendingAutoResult.all){
+    schedule=pendingAutoResult.clone;
+    closeM('autoMod');renderCal();renderCalSummary();showResult(`✓ 全部分店一鍵排班完成，可繼續手動調整`);showToast('一鍵排班完成','ok');pendingAutoResult=null;
+    return;
+  }
+  const{si,result}=pendingAutoResult;
+  applyResults(si,result);
+  closeM('autoMod');renderCal();renderCalSummary();showResult(`✓ 已套用 ${result.length} 個班次，可繼續手動調整`);showToast('自動排班完成','ok');pendingAutoResult=null;
+}
+
+// ═══════════════════════════════════════
+// AI
+// ═══════════════════════════════════════
+function renderAI(){
+  const total=dim(Y,M);let allS=0,allE=0;
+  stores.forEach(st=>{for(let d=1;d<=total;d++){const s=getShifts(st.id,ds(Y,M,d)).filter(x=>x.type!=='o');allS+=s.length;if(!s.length)allE++;}});
+  const ff=employees.filter(e=>isFT(e.role)&&getPersonalOffCount(e.id)>=getOffMax(e.id)).length;
+  const ft=employees.filter(e=>isFT(e.role)).length;
+  let conflictDays=0;
+  for(let d=1;d<=total;d++){if(getOffStatus(ds(Y,M,d)).conflict)conflictDays++;}
+  document.getElementById('aiStats').innerHTML=`
+    <div style="background:var(--sur2);border-radius:var(--rs);padding:8px 12px;min-width:80px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">已排班次</div><div style="font-family:var(--m);font-size:17px;">${allS}</div></div>
+    <div style="background:var(--sur2);border-radius:var(--rs);padding:8px 12px;min-width:80px;${allE>8?'background:#fff3e8;':''}"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">空班天數</div><div style="font-family:var(--m);font-size:17px;${allE>8?'color:var(--red);':''}">${allE}</div></div>
+    <div style="background:var(--sur2);border-radius:var(--rs);padding:8px 12px;min-width:110px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">休假填報完成</div><div style="font-family:var(--m);font-size:17px;">${ff}/${ft}人</div></div>
+    <div style="background:var(--sur2);border-radius:var(--rs);padding:8px 12px;min-width:90px;${conflictDays>0?'background:#fff3e8;':''}"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);">休假待協調</div><div style="font-family:var(--m);font-size:17px;${conflictDays>0?'color:var(--red);':''}">${conflictDays}天</div></div>`;
+  const issues=[];
+  // 全公司休假上限相關問題（每日只檢查一次，不分店）
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d);
+    const status=getOffStatus(date);
+    if(status.conflict)issues.push({lv:'e',text:`${M+1}/${d}：<strong>${status.want.length}人想休</strong>但全公司僅剩${status.remaining}個名額，需協調`});
+    else if(status.mustCount>status.limit)issues.push({lv:'w',text:`${M+1}/${d}：必休${status.mustCount}人已超過全公司上限${status.limit}人，人力可能不足`});
+  }
+  stores.forEach(st=>{const duty=getDutyReq(st.id);for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d),shifts=getShifts(st.id,date).filter(s=>s.type!=='o'),req=getReq(st.id,date),miss=[];
+    if(shifts.filter(s=>s.type==='m').length<req.m)miss.push(`早班(需${req.m}人)`);
+    if(shifts.filter(s=>s.type==='e').length<req.e)miss.push(`晚班(需${req.e}人)`);
+    if(shifts.filter(s=>s.type==='p').length<req.p)miss.push(`工讀(需${req.p}人)`);
+    if(shifts.filter(s=>s.type==='h').length<req.h)miss.push(`節日班(需${req.h}人)`);
+    if(miss.length)issues.push({lv:'w',text:`${st.name} ${d}日 缺 <strong>${miss.join('、')}</strong>`});
+    // 刀手/前台 標籤人力檢查（早班、晚班各自檢查）
+    if(duty.knife>0||duty.front>0){
+      ['m','e'].forEach(type=>{
+        const label=type==='m'?'早班':'晚班';
+        const onShift=shifts.filter(s=>s.type===type).map(s=>employees.find(e=>e.id===s.empId)).filter(Boolean);
+        const knifeCnt=onShift.filter(e=>(e.tags||[]).includes('刀手')).length;
+        const frontCnt=onShift.filter(e=>(e.tags||[]).includes('前台')).length;
+        const dutyMiss=[];
+        if(knifeCnt<duty.knife)dutyMiss.push(`刀手${knifeCnt}/${duty.knife}`);
+        if(frontCnt<duty.front)dutyMiss.push(`前台${frontCnt}/${duty.front}`);
+        if(dutyMiss.length&&onShift.length>0)issues.push({lv:'w',text:`${st.name} ${d}日 ${label}：<strong>${dutyMiss.join('、')}</strong> 人力不足`});
+      });
+    }
+    shifts.forEach(s=>{const emp=employees.find(e=>e.id===s.empId);if(!emp||!isFT(emp.role))return;if(isEmpOffEffective(emp.id,date))issues.push({lv:'e',text:`${st.name} ${d}日：<strong>${emp.name}</strong> 排班但當天休假`});});
+  }});
+  // 公平性檢查：正職本月總上班天數，分別在「無支援能力」和「有支援能力」兩組內部比較平均值
+  // （因為這兩組人本身的工作型態不同，無支援者只能靠主店、有支援者要分擔多店，
+  //  混在一起比較會誤判，例如無支援者天數本來就該偏高也是正常的）
+  {
+    const totCnt={};
+    stores.forEach(st=>{for(let d=1;d<=total;d++){getShifts(st.id,ds(Y,M,d)).forEach(s=>{if(s.type!=='o')totCnt[s.empId]=(totCnt[s.empId]||0)+1;});}});
+    const ftList=employees.filter(e=>isFT(e.role));
+    const noSupport=ftList.filter(e=>!e.supportStores.length);
+    const hasSupport=ftList.filter(e=>e.supportStores.length>0);
+    [{group:noSupport,label:'無支援組'},{group:hasSupport,label:'有支援組'}].forEach(({group,label})=>{
+      if(!group.length)return;
+      const counts=group.map(e=>totCnt[e.id]||0);
+      const avg=counts.reduce((a,b)=>a+b,0)/counts.length;
+      group.forEach(e=>{
+        const t=totCnt[e.id]||0,diff=t-avg;
+        if(Math.abs(diff)>=3)issues.push({lv:'w',text:`公平性(${label})：<strong>${e.name}</strong> 本月已排${t}天，跟同組平均(${avg.toFixed(1)}天)相差${Math.abs(diff).toFixed(1)}天，${diff>0?'明顯偏多':'明顯偏少'}`});
+      });
+    });
+  }
+  document.getElementById('issueN').textContent=issues.length?`（${issues.length}項）`:'';
+  document.getElementById('issueList').innerHTML=issues.length?issues.slice(0,10).map(i=>`<div class="issue-row ${i.lv}"><span>${i.lv==='e'?'🔴':'🟡'}</span><span>${i.text}</span></div>`).join(''):'<div style="font-size:11px;color:var(--ink3);">目前沒有問題。</div>';
+  document.getElementById('rM').textContent=`${times.mS}–${times.mE}`;
+  document.getElementById('rE').textContent=`${times.eS}–${times.eE}`;
+  document.getElementById('rOff').textContent=getOffLimit();
+}
+function aiQ(msg){document.getElementById('aiIn').value=msg;sendAI();}
+function buildCtx(){
+  const total=dim(Y,M);let ctx=`月份：${Y}年${M+1}月\n分店：${stores.map(s=>s.name).join('、')}\n`;
+  const dutyLines=stores.map(s=>{const d=getDutyReq(s.id);return(d.knife>0||d.front>0)?`${s.name}:每班刀手${d.knife}人/前台${d.front}人`:null;}).filter(Boolean);
+  if(dutyLines.length)ctx+=`各店每班(早/晚)職務人力需求：${dutyLines.join('、')}\n`;
+  ctx+=`員工（${employees.length}人）：\n`;
+  employees.forEach(e=>{
+    const tagTxt=(e.tags||[]).length?`｜標籤:${e.tags.join('/')}`:'';
+    if(isFT(e.role)){
+      const m=[...(mustOff[e.id]||new Set())].sort().map(d=>parseInt(d.split('-')[2])).join(',');
+      const w=[...(wantOff[e.id]||new Set())].sort().map(d=>parseInt(d.split('-')[2])).join(',');
+      ctx+=`${e.name}｜${e.role}｜主店:${storeName(e.mainStore)}${tagTxt}｜月休上限:${getOffMax(e.id)}天｜必休:${m||'無'}｜想休:${w||'無'}\n`;
+    }else{
+      const works=[...(workDays[e.id]||new Set())].sort().map(d=>parseInt(d.split('-')[2])).join(',');
+      ctx+=`${e.name}｜工讀生｜主店:${storeName(e.mainStore)}${tagTxt}｜可上班日:${works||'未填'}\n`;
+    }
+  });
+  ctx+=`班別：早班${times.mS}–${times.mE}、晚班${times.eS}–${times.eE}\n全公司每日休假上限（合計）：${getOffLimit()}人\n`;
+  const specialThisMonth=Object.entries(specialDates).filter(([date])=>date.startsWith(`${Y}-${String(M+1).padStart(2,'0')}`));
+  if(specialThisMonth.length){
+    ctx+=`本月特殊日期：\n`;
+    specialThisMonth.forEach(([date,sp])=>{
+      const d=parseInt(date.split('-')[2]);
+      ctx+=sp.type==='closed'?`${d}日：公休（不營業，無需排班）\n`:`${d}日：節日特殊班，不分早晚班，需求${sp.headcount}人，時段${sp.hS}–${sp.hE}\n`;
+    });
+  }
+  ctx+=`目前班表：\n`;
+  stores.forEach(st=>{for(let d=1;d<=total;d++){const date=ds(Y,M,d),shifts=getShifts(st.id,date);if(shifts.length){const detail=shifts.map(s=>{const e=employees.find(em=>em.id===s.empId);return e?`${s.type==='m'?'早':s.type==='e'?'晚':s.type==='p'?'工讀':s.type==='h'?'節日':'休'}:${e.name}`:''}).filter(Boolean).join(' ');ctx+=`${st.name} ${d}日：${detail}\n`;}}});
+  return ctx;
+}
+async function sendAI(){
+  const inp=document.getElementById('aiIn');const msg=inp.value.trim();if(!msg)return;
+  inp.value='';const chat=document.getElementById('aiMsgs');
+  chat.innerHTML+=`<div class="msg user">${msg.replace(/</g,'&lt;')}</div>`;
+  chat.innerHTML+=`<div class="msg loading" id="aiLoad">思考中…</div>`;
+  chat.scrollTop=chat.scrollHeight;document.getElementById('aiBtn').disabled=true;
+  const system=`你是連鎖餐廳排班助手，用繁體中文回答，簡潔有條理。排班規則：每店每天需早班正職、晚班正職、工讀各若干人（依設定）；正職月休天數可個別設定；工讀生填想上班日；同人同天只能在一間店。\n\n資料：\n${buildCtx()}\n\n如需建議班表，明確列出日期、店名、班別、員工姓名。不超過500字。`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system,messages:[{role:'user',content:msg}]})});
+    const data=await res.json();const reply=data.content?.map(b=>b.text||'').join('')||'無法取得回應。';
+    document.getElementById('aiLoad').remove();
+    chat.innerHTML+=`<div class="msg ai">${reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>`;
+  }catch{document.getElementById('aiLoad').remove();chat.innerHTML+=`<div class="msg ai">連線問題，請稍後再試。</div>`;}
+  document.getElementById('aiBtn').disabled=false;chat.scrollTop=chat.scrollHeight;
+}
+
+// ═══════════════════════════════════════
+// EXCEL EXPORT — 姓名為列(直列)，日期為欄(橫列)
+// ═══════════════════════════════════════
+const ROLE_ORDER={'店長':0,'代理店長':1,'正職':2,'工讀生':3};
+function cellLabel(empId,si,date,isMainFt){
+  if(isMainFt&&isEmpOffEffective(empId,date))return getOffMark(empId,date)==='must'?'休(必)':'休(想)';
+  const s=getShifts(si,date).find(x=>x.empId===empId);
+  if(s){
+    if(s.type==='m')return'早';
+    if(s.type==='e')return'晚';
+    if(s.type==='p')return`工讀 ${s.ptS||''}-${s.ptE||''}`;
+    if(s.type==='h')return`節日 ${s.hS||''}-${s.hE||''}`;
+    if(s.type==='o')return'休';
+    return'';
+  }
+  // 這張表是「主店視角」：本店沒有排到他，但他今天若被排去別的分店支援，標示去支援哪一店
+  if(isMainFt){
+    const elsewhere=stores.find(st=>st.id!==si&&getShifts(st.id,date).some(x=>x.empId===empId&&x.type!=='o'));
+    if(elsewhere)return`支援${elsewhere.id}`;
+  }
+  return'';
+}
+function buildStoreSheet(si){
+  const total=dim(Y,M);
+  const header=['姓名(職位)'];
+  for(let d=1;d<=total;d++){const date=ds(Y,M,d);header.push(`${M+1}/${d}(${DAYS[(new Date(date).getDay()+6)%7]})`);}
+  const rows=[header];
+  const scheduledIds=new Set();
+  for(let d=1;d<=total;d++)getShifts(si,ds(Y,M,d)).forEach(s=>scheduledIds.add(s.empId));
+  const relevant=employees.filter(e=>e.mainStore===si||scheduledIds.has(e.id))
+    .sort((a,b)=>(ROLE_ORDER[a.role]??9)-(ROLE_ORDER[b.role]??9));
+  relevant.forEach(e=>{
+    const row=[`${e.name}(${e.role})`];
+    const isMainFt=isFT(e.role)&&e.mainStore===si;
+    for(let d=1;d<=total;d++){
+      const date=ds(Y,M,d);
+      const cell=cellLabel(e.id,si,date,isMainFt);
+      row.push(cell);
+    }
+    rows.push(row);
+  });
+  return rows;
+}
+function buildOffSummarySheet(){
+  const total=dim(Y,M);
+  const header=['姓名','職位','主店','月休上限','必休天數','想休天數','總計'];
+  for(let d=1;d<=total;d++)header.push(`${d}`);
+  const rows=[header];
+  employees.filter(e=>isFT(e.role)).forEach(e=>{
+    const m=mustOff[e.id]||new Set(),w=wantOff[e.id]||new Set();
+    const row=[e.name,e.role,storeName(e.mainStore),getOffMax(e.id),m.size,w.size,m.size+w.size];
+    for(let d=1;d<=total;d++){
+      const date=ds(Y,M,d);
+      if(m.has(date))row.push('必');
+      else if(w.has(date))row.push(isEmpOffEffective(e.id,date)?'想✓':'想(協調中)');
+      else row.push('');
+    }
+    rows.push(row);
+  });
+  return rows;
+}
+function buildPtSheet(){
+  const total=dim(Y,M);
+  const header=['姓名','主店','已填天數'];
+  for(let d=1;d<=total;d++)header.push(`${d}`);
+  const rows=[header];
+  employees.filter(e=>!isFT(e.role)).forEach(e=>{
+    const w=workDays[e.id]||new Set();
+    const row=[e.name,storeName(e.mainStore),w.size];
+    for(let d=1;d<=total;d++)row.push(w.has(ds(Y,M,d))?'✓':'');
+    rows.push(row);
+  });
+  return rows;
+}
+function buildConflictSheet(){
+  const total=dim(Y,M);
+  const header=['日期','星期','全公司休假上限','必休人數','想休人數','剩餘名額','狀態','想休員工(分店)'];
+  const rows=[header];
+  for(let d=1;d<=total;d++){
+    const date=ds(Y,M,d);
+    const status=getOffStatus(date);
+    if(status.conflict){
+      rows.push([`${M+1}/${d}`,DAYS[(new Date(date).getDay()+6)%7],status.limit,status.mustCount,status.want.length,status.remaining,'需協調',status.want.map(e=>`${e.name}(${storeName(e.mainStore)})`).join('、')]);
+    }
+  }
+  if(rows.length===1)rows.push(['（本月無休假衝突）','','','','','','','']);
+  return rows;
+}
+function exportExcel(){
+  if(typeof XLSX==='undefined'){showToast('Excel匯出功能載入失敗，請檢查網路連線','err');return;}
+  const wb=XLSX.utils.book_new();
+  stores.forEach(st=>{
+    const ws=XLSX.utils.aoa_to_sheet(buildStoreSheet(st.id));
+    ws['!cols']=[{wch:14},...Array(dim(Y,M)).fill({wch:9})];
+    XLSX.utils.book_append_sheet(wb,ws,st.name);
+  });
+  const offWs=XLSX.utils.aoa_to_sheet(buildOffSummarySheet());
+  offWs['!cols']=[{wch:10},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:6},...Array(dim(Y,M)).fill({wch:6})];
+  XLSX.utils.book_append_sheet(wb,offWs,'正職休假總覽');
+  const ptWs=XLSX.utils.aoa_to_sheet(buildPtSheet());
+  ptWs['!cols']=[{wch:10},{wch:8},{wch:8},...Array(dim(Y,M)).fill({wch:4})];
+  XLSX.utils.book_append_sheet(wb,ptWs,'工讀生上班總覽');
+  const cfWs=XLSX.utils.aoa_to_sheet(buildConflictSheet());
+  XLSX.utils.book_append_sheet(wb,cfWs,'休假衝突');
+  XLSX.writeFile(wb,`排班表_${Y}${String(M+1).padStart(2,'0')}.xlsx`);
+  showToast('已匯出 Excel','ok');
+}
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function closeM(id){document.getElementById(id).classList.add('hidden');}
+document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');}));
+let tTimer;
+function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(tTimer);tTimer=setTimeout(()=>t.classList.remove('show'),2500);}
+function updateMlbl(){document.getElementById('mLbl').textContent=`${Y}/${String(M+1).padStart(2,'0')}`;}
+// 切換月份後，除了班表本身，「填報」「AI排班」「設定」頁若目前正開著也要一併重新渲染，
+// 否則切月份後這些頁面會殘留舊月份渲染好的DOM、天數對不上（例如停在30天卡住，看不到31號）。
+function onMonthChanged(){
+  updateMlbl();
+  renderSchedule();
+  if(document.getElementById('pane-request').classList.contains('on'))renderRequest();
+  if(document.getElementById('pane-ai').classList.contains('on'))renderAI();
+}
+document.getElementById('prevM').onclick=()=>{M--;if(M<0){M=11;Y--;}onMonthChanged();};
+document.getElementById('nextM').onclick=()=>{M++;if(M>11){M=0;Y++;}onMonthChanged();};
+
+// ═══════════════════════════════════════
+// ☁️ 雲端同步（Google Apps Script）
+// ═══════════════════════════════════════
+let syncUrl=localStorage.getItem('sched_syncUrl')||'';
+let syncKey=localStorage.getItem('sched_syncKey')||'';
+let syncConnected=false;
+let lastRemoteUpdatedAt=null;
+let syncPollTimer=null;
+let saveDebounceTimer=null;
+let isApplyingRemote=false; // 避免「載入遠端資料」又觸發「上傳」造成迴圈
+
+// 把所有需要同步的 state 打包成一個可序列化的物件
+// Set 型別轉成陣列；其餘物件/陣列直接存
+function serializeState(){
+  const setOfObj=(m)=>{const o={};for(const k in m)o[k]=[...(m[k]||new Set())];return o;};
+  return{
+    stores,ptSlots,employees,times,adminPin,
+    empOffMax,globalOffLimit,storeDefaultReq,dailyReq,openDay,
+    specialDates,holidayDefaultTime,storeDutyReq,
+    mustOff:setOfObj(mustOff),wantOff:setOfObj(wantOff),workDays:setOfObj(workDays),
+    schedule, // schedule[storeId][date] = array，無 Set，可直接存
+    conflictResolution:setOfObj(conflictResolution),
+    Y,M,curStore,
+  };
+}
+// 還原回程式內的 state 變數
+function applyState(d){
+  if(!d)return;
+  isApplyingRemote=true;
+  try{
+    if(d.stores)stores=d.stores;
+    if(d.ptSlots)ptSlots=d.ptSlots;
+    if(d.employees){employees=d.employees;employees.forEach(e=>{if(!e.tags)e.tags=[];});}
+    if(d.times)times=d.times;
+    if(d.adminPin){adminPin=d.adminPin;localStorage.setItem('sched_adminPin',d.adminPin);}
+    if(d.empOffMax)empOffMax=d.empOffMax;
+    if(typeof d.globalOffLimit==='number')globalOffLimit=d.globalOffLimit;
+    if(typeof d.openDay==='number')openDay=d.openDay;
+    if(d.storeDefaultReq)storeDefaultReq=d.storeDefaultReq;
+    if(d.dailyReq)dailyReq=d.dailyReq;
+    if(d.specialDates)specialDates=d.specialDates;
+    if(d.holidayDefaultTime)holidayDefaultTime=d.holidayDefaultTime;
+    if(d.storeDutyReq)storeDutyReq=d.storeDutyReq;
+    const objToSet=(o)=>{const m={};for(const k in (o||{}))m[k]=new Set(o[k]);return m;};
+    mustOff=objToSet(d.mustOff);
+    wantOff=objToSet(d.wantOff);
+    workDays=objToSet(d.workDays);
+    conflictResolution=objToSet(d.conflictResolution);
+    if(d.schedule)schedule=d.schedule;
+    employees.forEach(e=>initEmp(e.id));
+    if(typeof d.Y==='number')Y=d.Y;
+    if(typeof d.M==='number')M=d.M;
+    if(d.curStore!=null)curStore=d.curStore;
+  }finally{
+    isApplyingRemote=false;
+  }
+}
+
+function setSyncStatus(state,msg){
+  const dot=document.getElementById('syncDot'),txt=document.getElementById('syncText');
+  if(!dot||!txt)return;
+  const map={off:['#999','未連線'],ok:['#1a7a3a','已同步'],saving:['#d08020','儲存中…'],error:['#c03030','連線錯誤'],loading:['#2e50a8','載入中…']};
+  const[c,t]=map[state]||map.off;
+  dot.style.background=c;txt.textContent=msg||t;
+  const st=document.getElementById('syncStatusText');
+  if(st)st.textContent=state==='ok'?`上次同步：${new Date().toLocaleTimeString('zh-TW')}`:'';
+}
+
+function connectSync(){
+  const url=document.getElementById('syncUrlInput').value.trim();
+  const key=document.getElementById('syncKeyInput').value.trim();
+  if(!url||!key){showToast('請輸入網址與密碼','err');return;}
+  syncUrl=url;syncKey=key;
+  localStorage.setItem('sched_syncUrl',url);
+  localStorage.setItem('sched_syncKey',key);
+  syncConnected=true;
+  manualPull(true);
+  startPolling();
+}
+function startPolling(){
+  if(syncPollTimer)clearInterval(syncPollTimer);
+  // 每15秒檢查雲端是否有新資料（別人異動過），有的話才重新載入畫面
+  syncPollTimer=setInterval(()=>pullIfNewer(),15000);
+}
+async function cloudGet(){
+  const res=await fetch(`${syncUrl}?key=${encodeURIComponent(syncKey)}`);
+  return await res.json();
+}
+async function cloudPost(dataObj){
+  const res=await fetch(syncUrl,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // Apps Script doPost 對 text/plain 相容性最好，避免 CORS 預檢問題
+    body:JSON.stringify({key:syncKey,data:dataObj}),
+  });
+  return await res.json();
+}
+async function manualPull(silent){
+  if(!syncUrl||!syncKey){showToast('請先連線雲端','err');return;}
+  setSyncStatus('loading');
+  try{
+    const res=await cloudGet();
+    if(!res.ok){setSyncStatus('error',res.error||'讀取失敗');showToast(res.error||'讀取失敗','err');return;}
+    applyState(res.data);
+    lastRemoteUpdatedAt=res.updatedAt;
+    setSyncStatus('ok');
+    renderSchedule();renderRequest();renderSettings();
+    if(document.getElementById('pane-emp-portal').classList.contains('on'))renderEmpPortal();
+    if(!silent)showToast('已從雲端載入最新資料','ok');
+  }catch(err){setSyncStatus('error','連線失敗');if(!silent)showToast('連線失敗，請確認網址/密碼','err');}
+}
+async function manualPush(){
+  if(!syncUrl||!syncKey){showToast('請先連線雲端','err');return;}
+  setSyncStatus('saving');
+  try{
+    const res=await cloudPost(serializeState());
+    if(!res.ok){setSyncStatus('error',res.error||'儲存失敗');showToast(res.error||'儲存失敗','err');return;}
+    lastRemoteUpdatedAt=res.updatedAt;
+    setSyncStatus('ok');
+    showToast('已上傳至雲端','ok');
+  }catch(err){setSyncStatus('error','連線失敗');showToast('連線失敗，請確認網址/密碼','err');}
+}
+// 背景檢查：若雲端的更新時間比我們手上的新，且目前沒有人在打字編輯，才自動拉取
+async function pullIfNewer(){
+  if(!syncConnected||!syncUrl||!syncKey)return;
+  try{
+    const res=await cloudGet();
+    if(res.ok&&res.updatedAt&&res.updatedAt!==lastRemoteUpdatedAt){
+      applyState(res.data);
+      lastRemoteUpdatedAt=res.updatedAt;
+      setSyncStatus('ok','已更新');
+      renderSchedule();renderRequest();renderSettings();
+      if(document.getElementById('pane-emp-portal').classList.contains('on')){
+        if(loggedEmpId)renderEmpDash(); // 已登入：只刷新自己的畫面，不要登出
+        else renderEmpPortal(); // 還在登入畫面：更新員工清單
+      }
+    }
+  }catch(err){/* 背景輪詢失敗就靜默忽略，下次再試 */}
+}
+// 任何資料異動後呼叫這個（debounce 1.2秒，避免連續操作時瘋狂打API）
+function queueSave(){
+  if(isApplyingRemote)return; // 套用遠端資料造成的變動不要反過來又存回去
+  if(!syncConnected)return;
+  setSyncStatus('saving');
+  clearTimeout(saveDebounceTimer);
+  saveDebounceTimer=setTimeout(async()=>{
+    try{
+      const res=await cloudPost(serializeState());
+      if(res.ok){lastRemoteUpdatedAt=res.updatedAt;setSyncStatus('ok');}
+      else setSyncStatus('error',res.error);
+    }catch(err){setSyncStatus('error','連線失敗');}
+  },1200);
+}
+// 啟動時，若之前已填過連線資訊，自動嘗試連線
+function initSyncOnLoad(){
+  const urlInput=document.getElementById('syncUrlInput'),keyInput=document.getElementById('syncKeyInput');
+  if(urlInput)urlInput.value=syncUrl;
+  if(keyInput)keyInput.value=syncKey;
+  if(syncUrl&&syncKey){syncConnected=true;manualPull(true);startPolling();}
+}
+
+// ═══════════════════════════════════════
+// 🚪 入口 / 身份選擇
+// ═══════════════════════════════════════
+let appBooted=false; // 確保完整系統只初始化一次
+
+function gateShowAdminLogin(){
+  document.getElementById('gateStep1').classList.add('dn');
+  document.getElementById('gateStep2').classList.remove('dn');
+  document.getElementById('gateAdminErr').textContent='';
+  document.getElementById('gateAdminPin').value='';
+  setTimeout(()=>document.getElementById('gateAdminPin').focus(),50);
+  // 先靜默向雲端確認目前最新的管理者密碼（避免在別的裝置改過密碼，這裡還拿舊密碼比對）
+  if(syncUrl&&syncKey){
+    cloudGet().then(res=>{if(res&&res.ok&&res.data&&res.data.adminPin){adminPin=res.data.adminPin;localStorage.setItem('sched_adminPin',adminPin);}}).catch(()=>{});
+  }
+}
+function gateReset(){
+  document.getElementById('gateStep1').classList.remove('dn');
+  document.getElementById('gateStep2').classList.add('dn');
+}
+function gateAdminLogin(){
+  const v=document.getElementById('gateAdminPin').value;
+  if(v!==adminPin){
+    document.getElementById('gateAdminErr').textContent='密碼錯誤，請再試一次';
+    return;
+  }
+  bootApp(); // 完整系統
+  goPane('schedule',document.querySelectorAll('.nb')[0]);
+  closeGate();
+}
+function gateEnterEmployee(){
+  bootApp();
+  goPane('emp-portal',document.querySelectorAll('.nb')[4]);
+  // 隱藏管理用的導覽列與功能，只留員工入口本身
+  document.querySelector('.hdr').classList.add('emp-mode');
+  closeGate();
+}
+function closeGate(){
+  document.getElementById('gateScreen').classList.add('dn');
+  document.getElementById('appRoot').classList.remove('dn');
+}
+function exitToGate(){
+  // 員工/管理者皆可登出回到選擇畫面；同時登出員工身份避免資料殘留
+  loggedEmpId=null;
+  document.querySelector('.hdr').classList.remove('emp-mode');
+  document.getElementById('appRoot').classList.add('dn');
+  document.getElementById('gateScreen').classList.remove('dn');
+  gateReset();
+}
+// 系統真正初始化（讀取雲端資料、渲染畫面），只在第一次通過入口時執行一次
+function bootApp(){
+  if(appBooted)return;
+  appBooted=true;
+  updateMlbl();renderSchedule();
+  initSyncOnLoad();
+}
+
+</script>
+</body>
+</html>
